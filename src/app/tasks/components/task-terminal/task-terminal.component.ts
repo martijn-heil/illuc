@@ -78,7 +78,7 @@ export class TaskTerminalComponent
     }
 
     this.terminal = new Terminal({
-      convertEol: true,
+      convertEol: false,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       fontSize: 13,
       cursorBlink: true,
