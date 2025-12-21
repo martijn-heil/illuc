@@ -122,7 +122,11 @@ pub fn git_diff(
     base_commit: &str,
     whitespace_flag: Option<&str>,
 ) -> Result<DiffResult> {
-    let mut diff_args = vec!["diff".to_string()];
+    let mut diff_args = vec![
+        "diff".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-pager".to_string(),
+    ];
     if let Some(flag) = whitespace_flag {
         diff_args.push(flag.to_string());
     }
@@ -132,7 +136,12 @@ pub fn git_diff(
     diff_args.push(base_commit.to_string());
     let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
 
-    let mut files_args = vec!["diff".to_string(), "--name-status".to_string()];
+    let mut files_args = vec![
+        "diff".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-pager".to_string(),
+        "--name-status".to_string(),
+    ];
     if let Some(flag) = whitespace_flag {
         files_args.insert(1, flag.to_string());
     }
@@ -158,14 +167,23 @@ pub fn git_diff_branch(
     base_commit: &str,
     whitespace_flag: Option<&str>,
 ) -> Result<DiffResult> {
-    let mut diff_args = vec!["diff".to_string()];
+    let mut diff_args = vec![
+        "diff".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-pager".to_string(),
+    ];
     if let Some(flag) = whitespace_flag {
         diff_args.push(flag.to_string());
     }
     diff_args.push(base_commit.to_string());
     let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
 
-    let mut files_args = vec!["diff".to_string(), "--name-status".to_string()];
+    let mut files_args = vec![
+        "diff".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-pager".to_string(),
+        "--name-status".to_string(),
+    ];
     if let Some(flag) = whitespace_flag {
         files_args.insert(1, flag.to_string());
     }
