@@ -63,51 +63,20 @@
         <span class="status-pill" [attr.data-status]="current.status">
           {{ statusLabel() }}
         </span>
-        <button
-          type="button"
-          class="icon-btn"
-          (click)="onStart()"
+        <app-workflow-action-button
+          type="start"
           [disabled]="!canStart()"
-          title="Start workflow"
-          aria-label="Start workflow"
-        >
-          ▶
-        </button>
-        <button
-          type="button"
-          class="icon-btn"
-          (click)="onStop()"
+          (action)="onStart()"
+        ></app-workflow-action-button>
+        <app-workflow-action-button
+          type="stop"
           [disabled]="!isRunning()"
-          title="Stop workflow"
-          aria-label="Stop workflow"
-        >
-          ■
-        </button>
-        <button
-          type="button"
-          class="warn icon-btn"
-          (click)="onDiscard()"
-          title="Discard workflow"
-          aria-label="Discard workflow"
-        >
-          <svg
-            class="icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-            <line x1="10" y1="11" x2="10" y2="17"></line>
-            <line x1="14" y1="11" x2="14" y2="17"></line>
-          </svg>
-        </button>
+          (action)="onStop()"
+        ></app-workflow-action-button>
+        <app-workflow-action-button
+          type="discard"
+          (action)="onDiscard()"
+        ></app-workflow-action-button>
       </div>
     </header>
 
@@ -124,6 +93,36 @@
 
 <ng-template #emptyState>
   <div class="empty-view">
-    <p>Select a workflow to see its terminal and diff.</p>
+    <div class="landing-card">
+      <div class="compass-logo" aria-hidden="true">
+        <svg viewBox="0 0 200 200" role="presentation" focusable="false">
+          <circle class="compass-ring outer" cx="100" cy="100" r="70" />
+          <circle class="compass-ring inner" cx="100" cy="100" r="48" />
+          <line class="compass-axis" x1="100" y1="20" x2="100" y2="180" />
+          <line class="compass-axis" x1="20" y1="100" x2="180" y2="100" />
+          <path
+            class="compass-needle"
+            d="M100 40 L124 100 L100 160 L76 100 Z"
+            transform="rotate(45 100 100)"
+          />
+          <circle class="compass-core" cx="100" cy="100" r="6" />
+        </svg>
+      </div>
+      <div class="landing-text">
+        <h1>illuc</h1>
+        <p class="etymology">„thither, to that place, to there“</p>
+        <p class="subtitle">
+          Select a base repository to load managed worktrees, then choose an existing workflow or create a new branch to get started.
+        </p>
+        <button
+          type="button"
+          class="primary landing-action"
+          *ngIf="!baseRepo"
+          (click)="onSelectBaseRepo()"
+        >
+          Select repository
+        </button>
+      </div>
+    </div>
   </div>
 </ng-template>

@@ -1,10 +1,10 @@
 <div class="app-shell">
   <main class="content">
     <app-workflow-sidebar
+      *ngIf="baseRepo() as repo"
       [workflows]="workflows()"
       [selectedWorkflowId]="workflowStore.selectedWorkflowId()"
-      [baseRepo]="baseRepo()"
-      (browseRepo)="browseForRepo()"
+      [baseRepo]="repo"
       (createWorkflow)="openCreateWorkflowModal()"
       (selectWorkflow)="selectWorkflow($event)"
       (startWorkflow)="startWorkflow($event)"
@@ -15,11 +15,13 @@
     <app-workflow-view
       class="workflow-view"
       [workflow]="selectedWorkflow()"
+      [baseRepo]="baseRepo()"
       (startWorkflow)="startWorkflow($event)"
       (stopWorkflow)="stopWorkflow($event)"
       (discardWorkflow)="discardWorkflow($event)"
       (openInVsCode)="openWorkflowInVsCode($event)"
       (openTerminal)="openWorkflowTerminal($event)"
+      (selectBaseRepo)="browseForRepo()"
     ></app-workflow-view>
   </main>
 

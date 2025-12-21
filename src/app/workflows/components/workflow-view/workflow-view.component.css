@@ -158,19 +158,109 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column;
   height: 100%;
   width: 100%;
   color: rgba(255, 255, 255, 0.85);
-  font-size: 1.5rem;
-  text-align: center;
-  letter-spacing: 0.5px;
-  padding: 0 1rem;
+  padding: 0 1.5rem;
 }
 
-.empty-view p {
-  margin: 0;
-  width: 100%;
-  max-width: 520px;
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem 2.5rem;
   text-align: center;
+}
+
+.landing-text {
+  max-width: 520px;
+}
+
+.landing-action {
+  margin-top: 1.25rem;
+  padding: 0.4rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  letter-spacing: 0.05rem;
+}
+
+.landing-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.compass-logo {
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.compass-logo svg {
+  width: 100%;
+  height: 100%;
+}
+
+.compass-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.15);
+  stroke-width: 3;
+}
+
+.compass-ring.inner {
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-dasharray: 4 6;
+}
+
+.compass-core {
+  fill: rgba(255, 255, 255, 0.7);
+}
+
+.compass-needle {
+  fill: rgba(255, 255, 255, 0.35);
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 1.5;
+}
+
+.compass-axis {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 2;
+}
+
+.landing-text h1 {
+  margin: 0;
+  font-size: 2.25rem;
+  letter-spacing: 0.4rem;
+  text-transform: uppercase;
+}
+
+.etymology {
+  margin: 0.3rem 0 1.25rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.08rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+.subtitle {
+  font-size: 1rem;
+  line-height: 1.5;
+  max-width: 420px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 640px) {
+  .landing-card {
+    padding: 1.75rem 1.5rem;
+  }
+  .landing-text h1 {
+    font-size: 1.8rem;
+    letter-spacing: 0.3rem;
+  }
 }

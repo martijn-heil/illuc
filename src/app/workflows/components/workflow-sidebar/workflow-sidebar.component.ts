@@ -2,11 +2,12 @@ import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { WorkflowStatus, WorkflowSummary, BaseRepoInfo } from "../../workflow.models";
 import { parseTitleParts, TitleParts } from "../../title.utils";
+import { WorkflowActionButtonComponent } from "../workflow-action-button/workflow-action-button.component";
 
 @Component({
   selector: "app-workflow-sidebar",
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, WorkflowActionButtonComponent],
   templateUrl: "./workflow-sidebar.component.html",
   styleUrl: "./workflow-sidebar.component.css",
 })
@@ -18,7 +19,6 @@ export class WorkflowSidebarComponent {
   @Output() startWorkflow = new EventEmitter<string>();
   @Output() stopWorkflow = new EventEmitter<string>();
   @Output() discardWorkflow = new EventEmitter<string>();
-  @Output() browseRepo = new EventEmitter<void>();
   @Output() createWorkflow = new EventEmitter<void>();
 
   trackById(_: number, workflow: WorkflowSummary): string {
@@ -29,18 +29,15 @@ export class WorkflowSidebarComponent {
     this.selectWorkflow.emit(workflowId);
   }
 
-  onStart(workflowId: string, event: MouseEvent): void {
-    event.stopPropagation();
+  onStart(workflowId: string): void {
     this.startWorkflow.emit(workflowId);
   }
 
-  onStop(workflowId: string, event: MouseEvent): void {
-    event.stopPropagation();
+  onStop(workflowId: string): void {
     this.stopWorkflow.emit(workflowId);
   }
 
-  onDiscard(workflowId: string, event: MouseEvent): void {
-    event.stopPropagation();
+  onDiscard(workflowId: string): void {
     this.discardWorkflow.emit(workflowId);
   }
 

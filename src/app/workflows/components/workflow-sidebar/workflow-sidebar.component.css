@@ -59,6 +59,11 @@
   word-break: break-all;
 }
 
+.placeholder {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;

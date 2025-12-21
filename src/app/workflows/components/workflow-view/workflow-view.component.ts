@@ -1,24 +1,32 @@
 import { CommonModule } from "@angular/common";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
-import { WorkflowSummary } from "../../workflow.models";
+import { WorkflowSummary, BaseRepoInfo } from "../../workflow.models";
 import { parseTitleParts, TitleParts } from "../../title.utils";
 import { WorkflowTerminalComponent } from "../workflow-terminal/workflow-terminal.component";
 import { WorkflowDiffComponent } from "../workflow-diff/workflow-diff.component";
+import { WorkflowActionButtonComponent } from "../workflow-action-button/workflow-action-button.component";
 
 @Component({
   selector: "app-workflow-view",
   standalone: true,
-  imports: [CommonModule, WorkflowTerminalComponent, WorkflowDiffComponent],
+  imports: [
+    CommonModule,
+    WorkflowTerminalComponent,
+    WorkflowDiffComponent,
+    WorkflowActionButtonComponent,
+  ],
   templateUrl: "./workflow-view.component.html",
   styleUrl: "./workflow-view.component.css",
 })
 export class WorkflowViewComponent {
   @Input() workflow: WorkflowSummary | null = null;
+  @Input() baseRepo: BaseRepoInfo | null = null;
   @Output() startWorkflow = new EventEmitter<string>();
   @Output() stopWorkflow = new EventEmitter<string>();
   @Output() discardWorkflow = new EventEmitter<string>();
   @Output() openInVsCode = new EventEmitter<string>();
   @Output() openTerminal = new EventEmitter<string>();
+  @Output() selectBaseRepo = new EventEmitter<void>();
 
   statusLabel(): string {
     return this.workflow?.status.replace(/_/g, " ") ?? "";
@@ -68,5 +76,9 @@ export class WorkflowViewComponent {
     if (this.workflow) {
       this.openTerminal.emit(this.workflow.workflowId);
     }
+  }
+
+  onSelectBaseRepo(): void {
+    this.selectBaseRepo.emit();
   }
 }
