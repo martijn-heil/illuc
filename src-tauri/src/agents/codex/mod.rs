@@ -178,7 +178,7 @@ fn build_wsl_command(
     args: &[String],
     env: &Option<HashMap<String, String>>,
 ) -> CommandBuilder {
-    let mut command = CommandBuilder::new("wsl.exe");
+    let mut command = CommandBuilder::new("ubuntu.exe");
     let wsl_path = to_wsl_path(worktree_path).unwrap_or_else(|| "/".to_string());
     let mut command_line = format!("cd {} && ", bash_escape(&wsl_path));
     if let Some(env) = env {
@@ -195,7 +195,7 @@ fn build_wsl_command(
         command_line.push(' ');
         command_line.push_str(&bash_escape(arg));
     }
-    command.args(["--", "bash", "-lc", command_line.as_str()]);
+    command.args(["run", "bash", "-lc", command_line.as_str()]);
     command
 }
 
