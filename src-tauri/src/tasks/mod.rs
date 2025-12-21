@@ -68,6 +68,7 @@ pub struct TaskSummary {
     pub ended_at: Option<DateTime<Utc>>,
     pub worktree_path: String,
     pub branch_name: String,
+    pub base_branch: String,
     pub base_repo_path: String,
     pub base_commit: String,
     pub exit_code: Option<i32>,
@@ -453,6 +454,7 @@ impl TaskManager {
             ended_at: None,
             worktree_path: worktree_path_str,
             branch_name,
+            base_branch: base_ref.clone(),
             base_repo_path: repo_root.to_string_lossy().to_string(),
             base_commit,
             exit_code: None,
@@ -848,6 +850,10 @@ impl TaskManager {
             .unwrap_or_else(|_| provided_path.clone());
         let managed_root = managed_worktree_root(&repo_root)?;
         let base_repo_head = run_git(&repo_root, ["rev-parse", "HEAD"])?;
+        let base_repo_branch =
+            run_git(&repo_root, ["rev-parse", "--abbrev-ref", "HEAD"]).unwrap_or_else(|_| {
+                "HEAD".to_string()
+            });
         let entries = list_worktrees(&repo_root)?;
         let mut inserted = Vec::new();
         for entry in entries {
@@ -881,6 +887,7 @@ impl TaskManager {
                 ended_at: None,
                 worktree_path: canonical_path.to_string_lossy().to_string(),
                 branch_name,
+                base_branch: base_repo_branch.clone(),
                 base_repo_path: repo_root.to_string_lossy().to_string(),
                 base_commit: base_repo_head.clone(),
                 exit_code: None,

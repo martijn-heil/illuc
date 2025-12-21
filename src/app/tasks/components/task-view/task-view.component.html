@@ -51,7 +51,10 @@
         (mouseenter)="setActivePane('diff')"
         (focusin)="setActivePane('diff')"
       >
-        <app-task-diff [taskId]="current.taskId"></app-task-diff>
+        <app-task-diff
+          [taskId]="current.taskId"
+          [baseBranch]="current.baseBranch"
+        ></app-task-diff>
       </div>
     </div>
   </section>

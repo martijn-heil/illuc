@@ -73,6 +73,7 @@ interface RenderedDiffFile {
 })
 export class TaskDiffComponent implements OnChanges, OnDestroy {
   @Input() taskId: string | null = null;
+  @Input() baseBranch: string | null = null;
   @ViewChildren("diffSection") diffSections?: QueryList<ElementRef<HTMLElement>>;
 
   diffPayload: DiffPayload | null = null;

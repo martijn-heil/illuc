@@ -18,6 +18,7 @@ export interface TaskSummary {
   endedAt?: string | null;
   worktreePath: string;
   branchName: string;
+  baseBranch: string;
   baseRepoPath: string;
   baseCommit: string;
   exitCode?: number | null;

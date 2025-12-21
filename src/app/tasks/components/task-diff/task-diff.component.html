@@ -20,7 +20,7 @@
           [class.active]="diffMode === 'branch'"
           (click)="setDiffMode('branch')"
         >
-          Branch vs base
+          Branch vs {{ baseBranch || "base" }}
         </button>
       </div>
       <label>
