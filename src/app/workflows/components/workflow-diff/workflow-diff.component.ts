@@ -29,7 +29,7 @@ import markdown from "highlight.js/lib/languages/markdown";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { EMPTY, Subscription, from, timer } from "rxjs";
 import { catchError, switchMap } from "rxjs/operators";
-import { DiffPayload } from "../../workflow.models";
+import { DiffMode, DiffPayload } from "../../workflow.models";
 import { WorkflowStore } from "../../workflow.store";
 
 hljs.registerLanguage("javascript", javascript);
@@ -80,6 +80,7 @@ export class WorkflowDiffComponent implements OnChanges, OnDestroy {
   lastUpdated: Date | null = null;
   error: string | null = null;
   ignoreWhitespace = false;
+  diffMode: DiffMode = "worktree";
   private polling?: Subscription;
 
   constructor(
@@ -102,6 +103,14 @@ export class WorkflowDiffComponent implements OnChanges, OnDestroy {
     this.restartPolling();
   }
 
+  setDiffMode(mode: DiffMode): void {
+    if (this.diffMode === mode) {
+      return;
+    }
+    this.diffMode = mode;
+    this.restartPolling();
+  }
+
   refreshNow(): void {
     this.fetchDiffOnce();
   }
@@ -119,7 +128,7 @@ export class WorkflowDiffComponent implements OnChanges, OnDestroy {
       .pipe(
         switchMap(() =>
           from(
-            this.workflowStore.getDiff(workflowId, this.ignoreWhitespace),
+            this.workflowStore.getDiff(workflowId, this.ignoreWhitespace, this.diffMode),
           ).pipe(
             catchError((err) => {
               this.error =
@@ -148,7 +157,7 @@ export class WorkflowDiffComponent implements OnChanges, OnDestroy {
       return;
     }
     void this.workflowStore
-      .getDiff(this.workflowId, this.ignoreWhitespace)
+      .getDiff(this.workflowId, this.ignoreWhitespace, this.diffMode)
       .then((payload) => {
         this.diffPayload = payload;
         this.renderedFiles = this.buildRenderedDiff(payload);

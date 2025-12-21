@@ -34,6 +34,8 @@ export interface DiffFile {
   status: string;
 }
 
+export type DiffMode = "worktree" | "branch";
+
 export interface DiffPayload {
   workflowId: string;
   files: DiffFile[];

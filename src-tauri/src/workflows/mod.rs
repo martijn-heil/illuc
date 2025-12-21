@@ -129,6 +129,7 @@ pub struct TerminalResizeRequest {
 pub struct DiffRequest {
     pub workflow_id: Uuid,
     pub ignore_whitespace: Option<bool>,
+    pub mode: Option<DiffMode>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -143,6 +144,19 @@ pub struct DiffPayload {
     pub workflow_id: Uuid,
     pub files: Vec<DiffFile>,
     pub unified_diff: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DiffMode {
+    Worktree,
+    Branch,
+}
+
+impl Default for DiffMode {
+    fn default() -> Self {
+        DiffMode::Worktree
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -480,30 +494,42 @@ impl WorkflowManager {
         } else {
             None
         };
+        let mode = req.mode.unwrap_or(DiffMode::Worktree);
+        match mode {
+            DiffMode::Worktree => {
+                let staged = git_diff(
+                    worktree_path.as_path(),
+                    Some("--cached"),
+                    "HEAD",
+                    whitespace_flag,
+                )?;
+                let unstaged =
+                    git_diff(worktree_path.as_path(), None, "HEAD", whitespace_flag)?;
 
-        let staged = git_diff(
-            worktree_path.as_path(),
-            Some("--cached"),
-            base_commit.as_str(),
-            whitespace_flag,
-        )?;
-        let unstaged = git_diff(
-            worktree_path.as_path(),
-            None,
-            base_commit.as_str(),
-            whitespace_flag,
-        )?;
+                let diff_output = format!("{}\n{}", staged.diff, unstaged.diff)
+                    .trim()
+                    .to_string();
+                let files = merge_diff_files(staged.files, unstaged.files);
 
-        let diff_output = format!("{}\n{}", staged.diff, unstaged.diff)
-            .trim()
-            .to_string();
-        let files = merge_diff_files(staged.files, unstaged.files);
-
-        Ok(DiffPayload {
-            workflow_id,
-            files,
-            unified_diff: diff_output,
-        })
+                Ok(DiffPayload {
+                    workflow_id,
+                    files,
+                    unified_diff: diff_output,
+                })
+            }
+            DiffMode::Branch => {
+                let branch_diff = git_diff_branch(
+                    worktree_path.as_path(),
+                    base_commit.as_str(),
+                    whitespace_flag,
+                )?;
+                Ok(DiffPayload {
+                    workflow_id,
+                    files: branch_diff.files,
+                    unified_diff: branch_diff.diff,
+                })
+            }
+        }
     }
 
     fn append_terminal_output(&self, workflow_id: Uuid, chunk: &str) {
@@ -1025,6 +1051,35 @@ fn git_diff(
         } else {
             format!("--- Unstaged Changes ---\n{}", diff_output)
         },
+        files,
+    })
+}
+
+fn git_diff_branch(
+    repo: &Path,
+    base_commit: &str,
+    whitespace_flag: Option<&str>,
+) -> Result<DiffResult> {
+    let mut diff_args = vec!["diff".to_string()];
+    if let Some(flag) = whitespace_flag {
+        diff_args.push(flag.to_string());
+    }
+    diff_args.push(base_commit.to_string());
+    let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
+
+    let mut files_args = vec!["diff".to_string(), "--name-status".to_string()];
+    if let Some(flag) = whitespace_flag {
+        files_args.insert(1, flag.to_string());
+    }
+    files_args.push(base_commit.to_string());
+    let files_output = run_git(repo, files_args.iter().map(String::as_str))?;
+    let files = parse_diff_files(&files_output);
+    let short_base = &base_commit[..std::cmp::min(7, base_commit.len())];
+    Ok(DiffResult {
+        diff: format!(
+            "--- Branch comparison vs {} ---\n{}",
+            short_base, diff_output
+        ),
         files,
     })
 }

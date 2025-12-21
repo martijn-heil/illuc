@@ -4,6 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Observable, Subject } from "rxjs";
 import {
   BaseRepoInfo,
+  DiffMode,
   DiffPayload,
   TerminalExitEvent,
   TerminalOutputEvent,
@@ -124,11 +125,16 @@ export class WorkflowStore {
     });
   }
 
-  async getDiff(workflowId: string, ignoreWhitespace = false): Promise<DiffPayload> {
+  async getDiff(
+    workflowId: string,
+    ignoreWhitespace = false,
+    mode: DiffMode = "worktree",
+  ): Promise<DiffPayload> {
     return invoke<DiffPayload>("get_diff", {
       req: {
         workflowId,
         ignoreWhitespace,
+        mode,
       },
     });
   }

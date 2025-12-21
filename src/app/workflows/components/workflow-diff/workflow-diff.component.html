@@ -7,6 +7,22 @@
       </small>
     </div>
     <div class="controls">
+      <div class="mode-toggle" role="group" aria-label="Diff mode">
+        <button
+          type="button"
+          [class.active]="diffMode === 'worktree'"
+          (click)="setDiffMode('worktree')"
+        >
+          Worktree changes
+        </button>
+        <button
+          type="button"
+          [class.active]="diffMode === 'branch'"
+          (click)="setDiffMode('branch')"
+        >
+          Branch vs base
+        </button>
+      </div>
       <label>
         <input
           type="checkbox"
