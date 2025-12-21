@@ -250,10 +250,11 @@ export class TaskStore {
   }
 
   private pushTerminalOutput(taskId: string, chunk: string): void {
+    const normalized = chunk.replace(/\r\n/g, "\n");
     const buffer = this.terminalBuffers.get(taskId) ?? "";
-    this.terminalBuffers.set(taskId, buffer + chunk);
+    this.terminalBuffers.set(taskId, buffer + normalized);
     const stream = this.ensureTerminalStream(taskId);
-    stream.next(chunk);
+    stream.next(normalized);
   }
 
   private async loadExistingTasks(baseRepoPath: string): Promise<void> {

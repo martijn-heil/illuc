@@ -123,9 +123,11 @@ pub fn git_diff(
     whitespace_flag: Option<&str>,
 ) -> Result<DiffResult> {
     let mut diff_args = vec![
+        "-c".to_string(),
+        "diff.external=".to_string(),
+        "-c".to_string(),
+        "pager.diff=false".to_string(),
         "diff".to_string(),
-        "--no-ext-diff".to_string(),
-        "--no-pager".to_string(),
     ];
     if let Some(flag) = whitespace_flag {
         diff_args.push(flag.to_string());
@@ -137,9 +139,11 @@ pub fn git_diff(
     let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
 
     let mut files_args = vec![
+        "-c".to_string(),
+        "diff.external=".to_string(),
+        "-c".to_string(),
+        "pager.diff=false".to_string(),
         "diff".to_string(),
-        "--no-ext-diff".to_string(),
-        "--no-pager".to_string(),
         "--name-status".to_string(),
     ];
     if let Some(flag) = whitespace_flag {
@@ -168,9 +172,11 @@ pub fn git_diff_branch(
     whitespace_flag: Option<&str>,
 ) -> Result<DiffResult> {
     let mut diff_args = vec![
+        "-c".to_string(),
+        "diff.external=".to_string(),
+        "-c".to_string(),
+        "pager.diff=false".to_string(),
         "diff".to_string(),
-        "--no-ext-diff".to_string(),
-        "--no-pager".to_string(),
     ];
     if let Some(flag) = whitespace_flag {
         diff_args.push(flag.to_string());
@@ -179,9 +185,11 @@ pub fn git_diff_branch(
     let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
 
     let mut files_args = vec![
+        "-c".to_string(),
+        "diff.external=".to_string(),
+        "-c".to_string(),
+        "pager.diff=false".to_string(),
         "diff".to_string(),
-        "--no-ext-diff".to_string(),
-        "--no-pager".to_string(),
         "--name-status".to_string(),
     ];
     if let Some(flag) = whitespace_flag {
