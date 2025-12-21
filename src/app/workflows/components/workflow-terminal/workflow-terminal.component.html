@@ -1,0 +1,13 @@
+<section class="terminal-panel">
+  <header class="terminal-toolbar">
+    <div>
+      <strong>Chat Terminal</strong>
+      <span class="workflow-label" *ngIf="workflowId">#{{ workflowId.slice(0, 8) }}</span>
+    </div>
+    <div class="toolbar-actions">
+      <button type="button" (click)="clear()">Clear</button>
+      <button type="button" (click)="copySelection()">Copy</button>
+    </div>
+  </header>
+  <div class="terminal-host" #terminalHost></div>
+</section>

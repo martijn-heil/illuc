@@ -1,0 +1,72 @@
+<section class="diff-panel">
+  <header class="diff-header">
+    <div>
+      <strong>Live Diff</strong>
+      <small *ngIf="lastUpdated">
+        Updated {{ lastUpdated | date : "shortTime" }}
+      </small>
+    </div>
+    <div class="controls">
+      <label>
+        <input
+          type="checkbox"
+          [checked]="ignoreWhitespace"
+          (change)="toggleWhitespace()"
+        />
+        Ignore whitespace
+      </label>
+      <button type="button" [disabled]="!workflowId" (click)="refreshNow()">
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <ng-container *ngIf="workflowId; else noWorkflowSelected">
+    <div *ngIf="error" class="diff-error">{{ error }}</div>
+
+    <div *ngIf="!error && renderedFiles.length; else noDiff" class="diff-content">
+      <aside class="file-list" *ngIf="diffPayload?.files?.length; else noFiles">
+        <h4>Files</h4>
+        <button
+          type="button"
+          class="file-row"
+          *ngFor="let file of diffPayload?.files"
+          (click)="scrollToFile(file.path)"
+        >
+          <span class="status" [attr.data-status]="file.status">{{ file.status }}</span>
+          <span class="path">{{ file.path }}</span>
+        </button>
+      </aside>
+      <div class="diff-body">
+        <div
+          class="diff-file-section"
+          *ngFor="let file of renderedFiles; trackBy: trackByPath"
+          [attr.data-path]="file.path"
+          #diffSection
+        >
+          <div class="diff-file-header">{{ file.path }}</div>
+          <div class="diff-lines">
+            <div
+              class="diff-line"
+              *ngFor="let line of file.lines; trackBy: trackByLine"
+              [ngClass]="line.type"
+              [innerHTML]="line.html"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #noFiles>
+      <p class="diff-empty">No changed files.</p>
+    </ng-template>
+  </ng-container>
+
+  <ng-template #noWorkflowSelected>
+    <p class="diff-empty">Select a workflow to see its diff.</p>
+  </ng-template>
+
+  <ng-template #noDiff>
+    <p class="diff-empty">Nothing to show yet.</p>
+  </ng-template>
+</section>

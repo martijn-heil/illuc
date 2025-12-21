@@ -1,0 +1,43 @@
+<ng-container *ngIf="workflow as current; else emptyState">
+  <section class="workflow-detail">
+    <header class="workflow-header">
+      <div *ngIf="titleParts() as parts">
+        <h2>
+          <span *ngIf="parts.taskId" class="task-pill">#{{ parts.taskId }}</span>
+          <span>{{ parts.label }}</span>
+        </h2>
+        <p class="meta">
+          Branch: <strong>{{ current.branchName }}</strong> • Worktree:
+          <code>{{ current.worktreePath }}</code>
+        </p>
+      </div>
+      <div class="header-actions">
+        <div class="workspace-actions">
+          <button type="button" class="ghost" (click)="onOpenVsCode()">Open in VS Code</button>
+          <button type="button" class="ghost" (click)="onOpenTerminal()">Open Terminal</button>
+        </div>
+        <span class="status-pill" [attr.data-status]="current.status">
+          {{ statusLabel() }}
+        </span>
+        <button type="button" (click)="onStart()" [disabled]="!canStart()">Start</button>
+        <button type="button" (click)="onStop()" [disabled]="!isRunning()">Stop</button>
+        <button type="button" class="warn" (click)="onDiscard()">Discard</button>
+      </div>
+    </header>
+
+    <div class="split-panels">
+      <div class="terminal-column">
+        <app-workflow-terminal [workflowId]="current.workflowId"></app-workflow-terminal>
+      </div>
+      <div class="diff-column">
+        <app-workflow-diff [workflowId]="current.workflowId"></app-workflow-diff>
+      </div>
+    </div>
+  </section>
+</ng-container>
+
+<ng-template #emptyState>
+  <div class="empty-view">
+    <p>Select a workflow to see its terminal and diff.</p>
+  </div>
+</ng-template>

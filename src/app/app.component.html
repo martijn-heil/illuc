@@ -1,19 +1,47 @@
-<main class="container">
-  <h1>Welcome to Tauri + Angular!</h1>
+<div class="app-shell">
+  <main class="content">
+    <app-workflow-sidebar
+      [workflows]="workflows()"
+      [selectedWorkflowId]="workflowStore.selectedWorkflowId()"
+      [baseRepo]="baseRepo()"
+      (browseRepo)="browseForRepo()"
+      (createWorkflow)="openCreateWorkflowModal()"
+      (selectWorkflow)="selectWorkflow($event)"
+      (startWorkflow)="startWorkflow($event)"
+      (stopWorkflow)="stopWorkflow($event)"
+      (discardWorkflow)="discardWorkflow($event)"
+    ></app-workflow-sidebar>
 
-  <div class="row">
-    <a href="https://tauri.app" target="_blank">
-      <img src="/assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-    </a>
-    <a href="https://angular.io" target="_blank">
-      <img src="/assets/angular.svg" class="logo angular" alt="Angular logo" />
-    </a>
+    <app-workflow-view
+      class="workflow-view"
+      [workflow]="selectedWorkflow()"
+      (startWorkflow)="startWorkflow($event)"
+      (stopWorkflow)="stopWorkflow($event)"
+      (discardWorkflow)="discardWorkflow($event)"
+      (openInVsCode)="openWorkflowInVsCode($event)"
+      (openTerminal)="openWorkflowTerminal($event)"
+    ></app-workflow-view>
+  </main>
+
+  <footer class="status-bar" *ngIf="statusMessage">
+    {{ statusMessage }}
+  </footer>
+
+  <div class="modal-backdrop" *ngIf="showCreateModal">
+    <div class="modal">
+      <h3>Create Workflow</h3>
+      <p class="modal-subtitle">Provide the Git branch name for this workflow.</p>
+      <label class="input-label">Branch name</label>
+      <input
+        type="text"
+        [(ngModel)]="branchNameInput"
+        placeholder="e.g. feature/25323-fancy-feature-name"
+      />
+      <div class="error" *ngIf="branchNameError">{{ branchNameError }}</div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" (click)="closeCreateWorkflowModal()">Cancel</button>
+        <button type="button" class="primary" (click)="submitNewWorkflow()">Create Workflow</button>
+      </div>
+    </div>
   </div>
-  <p>Click on the logos to learn more about the frameworks</p>
-
-  <form class="row" (submit)="greet($event, greetInput.value)">
-    <input #greetInput id="greet-input" placeholder="Enter a name..." />
-    <button type="submit">Greet</button>
-  </form>
-  <p>{{ greetingMessage }}</p>
-</main>
+</div>

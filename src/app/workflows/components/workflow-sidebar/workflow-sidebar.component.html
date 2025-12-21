@@ -1,0 +1,75 @@
+<aside class="workflow-sidebar">
+  <div class="control-panel">
+    <div class="control-group">
+      <label>Base repository</label>
+      <button type="button" class="primary" (click)="browseRepo.emit()">Select repository</button>
+      <div class="repo-info" *ngIf="baseRepo">
+        <span class="path">{{ baseRepo.canonicalPath }}</span>
+        <span class="branch">Branch: {{ baseRepo.currentBranch }}</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>New workflow</label>
+      <button type="button" class="primary" (click)="createWorkflow.emit()" [disabled]="!baseRepo">
+        New Workflow
+      </button>
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+    <span class="title">Workflows</span>
+    <span class="count">{{ workflows?.length || 0 }}</span>
+  </div>
+
+  <div class="workflow-list" *ngIf="workflows?.length; else emptyState">
+    <div
+      *ngFor="let workflow of workflows; trackBy: trackById"
+      class="workflow-row"
+      [class.selected]="workflow.workflowId === selectedWorkflowId"
+      (click)="onSelect(workflow.workflowId)"
+    >
+      <div class="row-main" *ngIf="titleParts(workflow.title) as parts">
+        <div class="row-title">
+          <span *ngIf="parts.taskId" class="task-pill">#{{ parts.taskId }}</span>
+          <span class="title-text">{{ parts.label }}</span>
+        </div>
+        <span class="status" [attr.data-status]="workflow.status">
+          {{ statusLabel(workflow.status) }}
+        </span>
+      </div>
+
+      <div class="row-meta">
+        <small class="branch">{{ workflow.branchName }}</small>
+        <div class="actions">
+          <button
+            type="button"
+            class="ghost"
+            [disabled]="!canStart(workflow.status)"
+            (click)="onStart(workflow.workflowId, $event)"
+          >
+            Start
+          </button>
+          <button
+            type="button"
+            class="ghost"
+            [disabled]="!isRunning(workflow.status)"
+            (click)="onStop(workflow.workflowId, $event)"
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            class="ghost warn"
+            (click)="onDiscard(workflow.workflowId, $event)"
+          >
+            Discard
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ng-template #emptyState>
+    <p class="empty">Create a workflow to get started.</p>
+  </ng-template>
+</aside>

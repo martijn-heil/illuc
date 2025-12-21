@@ -1,0 +1,147 @@
+.workflow-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  color: #f5f7fb;
+  overflow: hidden;
+}
+
+.workflow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.workflow-header h2 {
+  margin: 0 0 0.3rem 0;
+}
+
+.meta {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.meta code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.task-pill {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 0.15rem 0.75rem;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+  color: #5ce1e6;
+  letter-spacing: 0.5px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.workspace-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-right: 0.5rem;
+}
+
+.workspace-actions .ghost {
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: inherit;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.status-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.status-pill[data-status="RUNNING"] {
+  background: rgba(81, 207, 102, 0.18);
+  color: #70e48b;
+}
+
+.split-panels {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(320px, 360px) 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terminal-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terminal-column app-workflow-terminal {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.diff-column {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+}
+
+.diff-column app-workflow-diff {
+  flex: 1;
+  display: block;
+}
+
+button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: inherit;
+  border-radius: 4px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+button.warn {
+  border-color: rgba(255, 92, 87, 0.5);
+  color: #ff8c85;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.empty-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 1.25rem;
+  text-align: center;
+  letter-spacing: 0.5px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.empty-view p {
+  margin: 0;
+  width: 100%;
+}
