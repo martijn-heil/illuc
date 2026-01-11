@@ -34,6 +34,22 @@ use tauri::AppHandle;
 use uuid::Uuid;
 use worktree::{clean_branch_name, format_title_from_branch, managed_worktree_root};
 
+#[cfg(target_os = "windows")]
+fn strip_alt_screen_sequences(input: &str) -> String {
+    input
+        .replace("\u{1b}[?1049h", "")
+        .replace("\u{1b}[?1049l", "")
+        .replace("\u{1b}[?1047h", "")
+        .replace("\u{1b}[?1047l", "")
+        .replace("\u{1b}[?47h", "")
+        .replace("\u{1b}[?47l", "")
+}
+
+#[cfg(not(target_os = "windows"))]
+fn strip_alt_screen_sequences(input: &str) -> String {
+    input.to_string()
+}
+
 
 const DEFAULT_SCREEN_ROWS: usize = 40;
 const DEFAULT_SCREEN_COLS: usize = 120;
@@ -472,6 +488,7 @@ impl TaskManager {
     }
 
     pub fn handle_agent_output(&self, task_id: Uuid, chunk: String, app: &AppHandle) {
+        let chunk = strip_alt_screen_sequences(&chunk);
         debug!("agent_output task_id={} bytes={}", task_id, chunk.len());
         let mut tasks = self.inner.tasks.write();
         if let Some(record) = tasks.get_mut(&task_id) {
