@@ -45,6 +45,7 @@ export class TaskTerminalComponent
   ];
   private readonly altScreenMaxLen = 8;
   private readonly isWindows = navigator.userAgent.toLowerCase().includes("windows");
+  private readonly assumeAltScreenOnWindows = true;
 
   constructor(private readonly taskStore: TaskStore) {}
 
@@ -73,7 +74,7 @@ export class TaskTerminalComponent
     if (this.taskId) {
       this.taskStore.clearTerminal(this.taskId);
     }
-    this.altScreenActive = false;
+    this.altScreenActive = this.isWindows && this.assumeAltScreenOnWindows;
     this.altScreenCarry = "";
     this.terminal?.reset();
   }
@@ -127,7 +128,7 @@ export class TaskTerminalComponent
       return;
     }
     this.dataSubscription?.unsubscribe();
-    this.altScreenActive = false;
+    this.altScreenActive = this.isWindows && this.assumeAltScreenOnWindows;
     this.altScreenCarry = "";
     this.terminal.reset();
 
@@ -183,7 +184,11 @@ export class TaskTerminalComponent
   }
 
   private handleTerminalWheel(event: WheelEvent): boolean {
-    if (!this.isWindows || !this.altScreenActive || !this.taskId) {
+    if (
+      !this.isWindows ||
+      (!this.assumeAltScreenOnWindows && !this.altScreenActive) ||
+      !this.taskId
+    ) {
       return true;
     }
     event.preventDefault();
@@ -195,6 +200,10 @@ export class TaskTerminalComponent
 
   private detectAltScreen(chunk: string): void {
     if (!this.isWindows) {
+      return;
+    }
+    if (this.assumeAltScreenOnWindows) {
+      this.altScreenActive = true;
       return;
     }
     const combined = this.altScreenCarry + chunk;
