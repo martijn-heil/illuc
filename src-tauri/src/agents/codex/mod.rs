@@ -11,8 +11,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
+use log::{debug};
+
 const DEFAULT_ROWS: u16 = 40;
-const DEFAULT_COLS: u16 = 120;
+const DEFAULT_COLS: u16 = 80;
 const APPROVAL_PROMPT: &str = "would you like to run the following command";
 
 #[derive(Clone)]
@@ -183,26 +185,17 @@ fn bash_escape(value: &str) -> String {
 fn build_wsl_command(
     worktree_path: &Path,
     args: &[String],
-    env: &Option<HashMap<String, String>>,
 ) -> CommandBuilder {
-    let mut command = CommandBuilder::new("ubuntu.exe");
+    let mut command = CommandBuilder::new("wsl.exe");
     let wsl_path = to_wsl_path(worktree_path).unwrap_or_else(|| "/".to_string());
     let mut command_line = format!("cd {} && ", bash_escape(&wsl_path));
-    if let Some(env) = env {
-        for (key, value) in env {
-            command_line.push_str(&format!(
-                "export {}={}; ",
-                key,
-                bash_escape(value)
-            ));
-        }
-    }
     command_line.push_str("codex");
     for arg in args {
         command_line.push(' ');
         command_line.push_str(&bash_escape(arg));
     }
-    command.args(["run", "bash", "-lc", command_line.as_str()]);
+    debug!("WSL command line: {}", command_line);
+    command.args(["-d", "Ubuntu", "--cd", &wsl_path, "--", "bash", "-lc", command_line.as_str()]);
     command
 }
 
@@ -211,7 +204,7 @@ impl Agent for CodexAgent {
         &mut self,
         worktree_path: &Path,
         args: Option<Vec<String>>,
-        env: Option<HashMap<String, String>>,
+        env: Option<HashMap<String, String>>, // TODO remove env entirely
         callbacks: AgentCallbacks,
     ) -> anyhow::Result<AgentRuntime> {
         let pty_system = native_pty_system();
@@ -234,7 +227,7 @@ impl Agent for CodexAgent {
 
         let args = args.unwrap_or_else(|| vec!["resume".to_string()]);
         #[cfg(target_os = "windows")]
-        let mut command = build_wsl_command(worktree_path, &args, &env);
+        let mut command = build_wsl_command(worktree_path, &args);
 
         #[cfg(not(target_os = "windows"))]
         let command = {

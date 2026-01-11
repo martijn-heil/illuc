@@ -124,8 +124,6 @@ pub fn git_diff(
 ) -> Result<DiffResult> {
     let mut diff_args = vec![
         "-c".to_string(),
-        "diff.external=".to_string(),
-        "-c".to_string(),
         "pager.diff=false".to_string(),
         "diff".to_string(),
     ];
@@ -138,9 +136,8 @@ pub fn git_diff(
     diff_args.push(base_commit.to_string());
     let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
 
+
     let mut files_args = vec![
-        "-c".to_string(),
-        "diff.external=".to_string(),
         "-c".to_string(),
         "pager.diff=false".to_string(),
         "diff".to_string(),
@@ -155,12 +152,32 @@ pub fn git_diff(
     files_args.push(base_commit.to_string());
     let files_output = run_git(repo, files_args.iter().map(String::as_str))?;
     let files = parse_diff_files(&files_output);
+    let mut files = files;
+    let mut untracked_diff = String::new();
+    if mode != Some("--cached") {
+        let untracked = git_untracked_files(repo)?;
+        if !untracked.is_empty() {
+            files.extend(untracked.iter().map(|path| DiffFile {
+                path: path.to_string(),
+                status: "A".to_string(),
+            }));
+            untracked_diff = git_untracked_diff(repo, &untracked, whitespace_flag)?;
+        }
+    }
 
     Ok(DiffResult {
         diff: if mode == Some("--cached") {
             format!("--- Staged Changes ---\n{}", diff_output)
         } else {
-            format!("--- Unstaged Changes ---\n{}", diff_output)
+            let mut combined = diff_output;
+            if !untracked_diff.is_empty() {
+                if !combined.is_empty() {
+                    combined.push('\n');
+                }
+                combined.push_str("--- Untracked Changes ---\n");
+                combined.push_str(&untracked_diff);
+            }
+            format!("--- Unstaged Changes ---\n{}", combined)
         },
         files,
     })
@@ -173,8 +190,6 @@ pub fn git_diff_branch(
 ) -> Result<DiffResult> {
     let mut diff_args = vec![
         "-c".to_string(),
-        "diff.external=".to_string(),
-        "-c".to_string(),
         "pager.diff=false".to_string(),
         "diff".to_string(),
     ];
@@ -185,8 +200,6 @@ pub fn git_diff_branch(
     let diff_output = run_git(repo, diff_args.iter().map(String::as_str))?;
 
     let mut files_args = vec![
-        "-c".to_string(),
-        "diff.external=".to_string(),
         "-c".to_string(),
         "pager.diff=false".to_string(),
         "diff".to_string(),
@@ -223,6 +236,7 @@ where
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         command.creation_flags(CREATE_NO_WINDOW);
     }
+
     let output = command
         .arg("-C")
         .arg(repo)
@@ -259,4 +273,86 @@ fn parse_diff_files(output: &str) -> Vec<DiffFile> {
             })
         })
         .collect()
+}
+
+fn git_untracked_files(repo: &Path) -> Result<Vec<String>> {
+    let output = run_git(repo, ["status", "--porcelain", "-uall"])?;
+    let files = output
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            let path = trimmed.strip_prefix("?? ")?;
+            Some(path.to_string())
+        })
+        .collect();
+    Ok(files)
+}
+
+fn git_untracked_diff(
+    repo: &Path,
+    files: &[String],
+    whitespace_flag: Option<&str>,
+) -> Result<String> {
+    let mut diff = String::new();
+    for path in files {
+        let mut args = vec![
+            "-c".to_string(),
+            "pager.diff=false".to_string(),
+            "diff".to_string(),
+        ];
+        if let Some(flag) = whitespace_flag {
+            args.push(flag.to_string());
+        }
+        args.push("--no-index".to_string());
+        args.push("--".to_string());
+        args.push("/dev/null".to_string());
+        args.push(path.to_string());
+        let chunk = run_git_allow_dirty(repo, args.iter().map(String::as_str))?;
+        if !chunk.is_empty() {
+            if !diff.is_empty() {
+                diff.push('\n');
+            }
+            diff.push_str(&chunk);
+        }
+    }
+    Ok(diff)
+}
+
+fn run_git_allow_dirty<I, S>(repo: &Path, args: I) -> Result<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let args_vec: Vec<OsString> = args
+        .into_iter()
+        .map(|a| a.as_ref().to_os_string())
+        .collect();
+    let mut command = Command::new("git");
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = command
+        .arg("-C")
+        .arg(repo)
+        .args(&args_vec)
+        .output()?;
+    if output.status.success() || output.status.code() == Some(1) {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        Err(TaskError::GitCommand {
+            command: format!(
+                "git -C {} {}",
+                repo.display(),
+                args_vec
+                    .iter()
+                    .map(|arg| arg.to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        })
+    }
 }
