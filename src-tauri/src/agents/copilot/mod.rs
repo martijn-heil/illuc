@@ -93,11 +93,12 @@ impl Agent for CopilotAgent {
         let writer = Arc::new(Mutex::new(writer));
 
         #[cfg(target_os = "windows")]
-        let mut command = build_wsl_command(worktree_path, "copilot", &[]);
+        let mut command = build_wsl_command(worktree_path, "copilot", &["--allow-all-tools", "--deny-tool", "shell(git push)"]);
 
         #[cfg(not(target_os = "windows"))]
         let command = {
             let mut command = CommandBuilder::new("copilot");
+            command.args(["--allow-all-tools", "--deny-tool", "shell(git push)"]);
             command.cwd(worktree_path);
             command
         };

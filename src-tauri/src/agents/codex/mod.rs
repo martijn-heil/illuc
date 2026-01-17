@@ -174,13 +174,13 @@ impl Agent for CodexAgent {
         let mut command = build_wsl_command(
             worktree_path,
             "codex",
-            &["--enable", "tui2", "resume"],
+            &["--enable", "tui2", "--full-auto", "resume"],
         );
 
         #[cfg(not(target_os = "windows"))]
         let command = {
             let mut command = CommandBuilder::new("codex");
-            command.args(["resume"]);
+            command.args(["--full-auto", "resume"]);
             command.cwd(worktree_path);
             command
         };
