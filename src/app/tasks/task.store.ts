@@ -10,6 +10,8 @@ import {
   TerminalExitEvent,
   TerminalOutputEvent,
   TaskSummary,
+  WorktreeTerminalExitEvent,
+  WorktreeTerminalOutputEvent,
 } from "./task.models";
 import { TaskGitService } from "./git/task-git.service";
 
@@ -25,6 +27,11 @@ export class TaskStore {
   private readonly terminalStreams = new Map<string, Subject<string>>();
   private readonly terminalSizes = new Map<string, { cols: number; rows: number }>();
   private lastTerminalSize: { cols: number; rows: number } | null = null;
+  private readonly worktreeTerminalBuffers = new Map<string, string>();
+  private readonly worktreeTerminalStreams = new Map<string, Subject<string>>();
+  private readonly worktreeTerminalSizes = new Map<string, { cols: number; rows: number }>();
+  private lastWorktreeTerminalSize: { cols: number; rows: number } | null = null;
+  private readonly worktreeTerminalOpenState = new Map<string, boolean>();
   private readonly unlistenFns: UnlistenFn[] = [];
 
   readonly tasks = this.tasksSignal.asReadonly();
@@ -59,6 +66,9 @@ export class TaskStore {
     this.branchOptionsSignal.set([]);
     this.terminalBuffers.clear();
     this.terminalStreams.clear();
+    this.worktreeTerminalBuffers.clear();
+    this.worktreeTerminalStreams.clear();
+    this.worktreeTerminalOpenState.clear();
     await this.loadExistingTasks(normalized.path);
     await this.loadBranches(normalized.path);
     return normalized;
@@ -124,6 +134,36 @@ export class TaskStore {
     rows: number,
   ): Promise<void> {
     await invoke("terminal_resize", {
+      req: {
+        taskId,
+        cols,
+        rows,
+      },
+    });
+  }
+
+  async startWorktreeTerminal(taskId: string): Promise<void> {
+    const size =
+      this.worktreeTerminalSizes.get(taskId) ?? this.lastWorktreeTerminalSize;
+    await invoke("start_worktree_terminal", {
+      req: {
+        taskId,
+        cols: size?.cols,
+        rows: size?.rows,
+      },
+    });
+  }
+
+  async writeToWorktreeTerminal(taskId: string, data: string): Promise<void> {
+    await invoke("worktree_terminal_write", { req: { taskId, data } });
+  }
+
+  async resizeWorktreeTerminal(
+    taskId: string,
+    cols: number,
+    rows: number,
+  ): Promise<void> {
+    await invoke("worktree_terminal_resize", {
       req: {
         taskId,
         cols,
@@ -205,9 +245,24 @@ export class TaskStore {
     return stream.asObservable();
   }
 
+  getWorktreeTerminalBuffer(taskId: string): string {
+    return this.worktreeTerminalBuffers.get(taskId) ?? "";
+  }
+
+  worktreeTerminalOutput$(taskId: string): Observable<string> {
+    const stream = this.ensureWorktreeTerminalStream(taskId);
+    return stream.asObservable();
+  }
+
   clearTerminal(taskId: string): void {
     this.terminalBuffers.set(taskId, "");
     const stream = this.ensureTerminalStream(taskId);
+    stream.next("\u001bc");
+  }
+
+  clearWorktreeTerminal(taskId: string): void {
+    this.worktreeTerminalBuffers.set(taskId, "");
+    const stream = this.ensureWorktreeTerminalStream(taskId);
     stream.next("\u001bc");
   }
 
@@ -219,6 +274,27 @@ export class TaskStore {
     if (taskId) {
       this.terminalSizes.set(taskId, { cols, rows });
     }
+  }
+
+  recordWorktreeTerminalSize(taskId: string, cols: number, rows: number): void {
+    if (cols <= 0 || rows <= 0) {
+      return;
+    }
+    this.lastWorktreeTerminalSize = { cols, rows };
+    if (taskId) {
+      this.worktreeTerminalSizes.set(taskId, { cols, rows });
+    }
+  }
+
+  isWorktreeTerminalOpen(taskId: string): boolean {
+    return this.worktreeTerminalOpenState.get(taskId) ?? false;
+  }
+
+  setWorktreeTerminalOpen(taskId: string, isOpen: boolean): void {
+    if (!taskId) {
+      return;
+    }
+    this.worktreeTerminalOpenState.set(taskId, isOpen);
   }
 
   private registerEventListeners(): void {
@@ -241,6 +317,26 @@ export class TaskStore {
         );
       });
     }).then((unlisten) => this.unlistenFns.push(unlisten));
+
+    void listen<WorktreeTerminalOutputEvent>(
+      "worktree_terminal_output",
+      (event) => {
+        this.zone.run(() => {
+          this.pushWorktreeTerminalOutput(event.payload.taskId, event.payload.data);
+        });
+      },
+    ).then((unlisten) => this.unlistenFns.push(unlisten));
+
+    void listen<WorktreeTerminalExitEvent>(
+      "worktree_terminal_exit",
+      (event) => {
+        this.zone.run(() => {
+          console.info(
+            `Worktree terminal ${event.payload.taskId} exited with code ${event.payload.exitCode}`,
+          );
+        });
+      },
+    ).then((unlisten) => this.unlistenFns.push(unlisten));
   }
 
   private upsertTask(summary: TaskSummary): void {
@@ -271,12 +367,22 @@ export class TaskStore {
     }
     this.terminalBuffers.delete(taskId);
     this.terminalStreams.delete(taskId);
+    this.worktreeTerminalBuffers.delete(taskId);
+    this.worktreeTerminalStreams.delete(taskId);
+    this.worktreeTerminalOpenState.delete(taskId);
   }
 
   private pushTerminalOutput(taskId: string, chunk: string): void {
     const buffer = this.terminalBuffers.get(taskId) ?? "";
     this.terminalBuffers.set(taskId, buffer + chunk);
     const stream = this.ensureTerminalStream(taskId);
+    stream.next(chunk);
+  }
+
+  private pushWorktreeTerminalOutput(taskId: string, chunk: string): void {
+    const buffer = this.worktreeTerminalBuffers.get(taskId) ?? "";
+    this.worktreeTerminalBuffers.set(taskId, buffer + chunk);
+    const stream = this.ensureWorktreeTerminalStream(taskId);
     stream.next(chunk);
   }
 
@@ -306,6 +412,13 @@ export class TaskStore {
       this.terminalStreams.set(taskId, new Subject<string>());
     }
     return this.terminalStreams.get(taskId)!;
+  }
+
+  private ensureWorktreeTerminalStream(taskId: string): Subject<string> {
+    if (!this.worktreeTerminalStreams.has(taskId)) {
+      this.worktreeTerminalStreams.set(taskId, new Subject<string>());
+    }
+    return this.worktreeTerminalStreams.get(taskId)!;
   }
 
   private teardown(): void {

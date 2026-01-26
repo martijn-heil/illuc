@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output, ViewChild, ElementRef, NgZone } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { AgentKind, TaskSummary, BaseRepoInfo } from "../../task.models";
 import { parseTitleParts, TitleParts } from "../../title.utils";
@@ -37,6 +37,14 @@ export class TaskViewComponent {
   @Input() stopLoading = false;
   @Input() selectRepoLoading = false;
   activePane: "terminal" | "diff" = "terminal";
+  isShellTerminalOpen = false;
+  isShellResizing = false;
+  shellTerminalHeight = 260;
+  shellGhostHeight: number | null = null;
+  private readonly minShellHeight = 160;
+  @ViewChild("shellTerminal") shellTerminal?: TaskTerminalComponent;
+  @ViewChild("shellDock") shellDock?: ElementRef<HTMLDivElement>;
+  @ViewChild("taskDetail") taskDetail?: ElementRef<HTMLElement>;
   @Output() startTask = new EventEmitter<{ taskId: string; agent: AgentKind }>();
   @Output() stopTask = new EventEmitter<string>();
   @Output() discardTask = new EventEmitter<string>();
@@ -57,7 +65,18 @@ export class TaskViewComponent {
   constructor(
     private readonly taskStore: TaskStore,
     private readonly launcher: LauncherService,
+    private readonly zone: NgZone,
   ) {}
+
+  ngOnChanges(): void {
+    if (this.task?.taskId) {
+      this.isShellTerminalOpen = this.taskStore.isWorktreeTerminalOpen(
+        this.task.taskId,
+      );
+    } else {
+      this.isShellTerminalOpen = false;
+    }
+  }
 
   statusLabel(): string {
     return this.task?.status.replace(/_/g, " ") ?? "";
@@ -191,6 +210,84 @@ export class TaskViewComponent {
   setActivePane(pane: "terminal" | "diff"): void {
     this.activePane = pane;
   }
+
+  toggleShellTerminal(): void {
+    this.isShellTerminalOpen = !this.isShellTerminalOpen;
+    if (this.task?.taskId) {
+      this.taskStore.setWorktreeTerminalOpen(
+        this.task.taskId,
+        this.isShellTerminalOpen,
+      );
+    }
+  }
+
+  onShellHeaderMouseDown(event: MouseEvent): void {
+    if (!this.isShellTerminalOpen) {
+      return;
+    }
+    this.startShellResize(event);
+  }
+
+  onShellHeaderClick(): void {
+    if (!this.isShellTerminalOpen) {
+      this.toggleShellTerminal();
+    }
+  }
+
+  startShellResize(event: MouseEvent): void {
+    if (!this.isShellTerminalOpen) {
+      return;
+    }
+    event.preventDefault();
+    this.isShellResizing = true;
+    const startY = event.clientY;
+    const startHeight = this.shellTerminalHeight;
+    let latestHeight = startHeight;
+    let rafId: number | null = null;
+    const dockEl = this.shellDock?.nativeElement;
+    const containerHeight = this.taskDetail?.nativeElement.clientHeight ?? window.innerHeight;
+    const maxShellHeight = Math.max(this.minShellHeight, containerHeight - 16);
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      const delta = startY - moveEvent.clientY;
+      const next = Math.max(
+        this.minShellHeight,
+        Math.min(maxShellHeight, startHeight + delta),
+      );
+      latestHeight = next;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          if (dockEl) {
+            dockEl.style.height = `${latestHeight}px`;
+          } else {
+            this.shellTerminalHeight = latestHeight;
+          }
+          rafId = null;
+        });
+      }
+    };
+
+    const handleUp = () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      this.zone.run(() => {
+        this.shellTerminalHeight = latestHeight;
+        this.isShellResizing = false;
+        this.shellTerminal?.forceBackendResizeNow(true);
+      });
+    };
+
+    this.zone.runOutsideAngular(() => {
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleUp);
+    });
+  }
+
+
 
   async openInExplorer(event: Event, path: string): Promise<void> {
     event.preventDefault();

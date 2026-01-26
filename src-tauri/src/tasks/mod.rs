@@ -8,6 +8,7 @@ pub use models::{
     AgentKind, BaseRepoInfo, CommitTaskRequest, CreateTaskRequest, DiffPayload, DiffRequest,
     DiscardTaskRequest, PushTaskRequest, StartTaskRequest, StopTaskRequest, TaskActionRequest,
     TaskStatus, TaskSummary, TerminalResizeRequest, TerminalWriteRequest,
+    StartWorktreeTerminalRequest,
 };
 pub use repo::handle_select_base_repo;
 
@@ -19,15 +20,19 @@ use crate::launcher;
 use crate::tasks::git::{
     git_commit, git_diff, git_push, get_repo_root, list_worktrees, run_git, validate_git_repo,
 };
-use events::{emit_diff_changed, emit_status, emit_terminal_exit, emit_terminal_output};
+use events::{
+    emit_diff_changed, emit_status, emit_terminal_exit, emit_terminal_output,
+    emit_worktree_terminal_exit, emit_worktree_terminal_output,
+};
 use crate::utils::fs::ensure_directory;
 use crate::utils::path::normalize_path_string;
 use chrono::Utc;
 use log::{debug, info, warn};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use parking_lot::{Mutex, RwLock};
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::AppHandle;
@@ -60,12 +65,34 @@ fn agent_label(agent_kind: AgentKind) -> &'static str {
     }
 }
 
+fn build_worktree_shell_command(worktree_path: &Path) -> CommandBuilder {
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = CommandBuilder::new("powershell.exe");
+        command.arg("-NoLogo");
+        command.cwd(worktree_path);
+        command
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let shell = std::env::var("SHELL")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "bash".to_string());
+        let mut command = CommandBuilder::new(shell);
+        command.cwd(worktree_path);
+        command
+    }
+}
+
 
 struct TaskRecord {
     agent: Box<dyn Agent>,
     agent_kind: AgentKind,
     summary: TaskSummary,
     runtime: Option<TaskRuntime>,
+    shell: Option<TaskRuntime>,
 }
 
 struct TaskRuntime {
@@ -172,6 +199,7 @@ impl TaskManager {
                 agent_kind: AgentKind::Codex,
                 summary: summary.clone(),
                 runtime: None,
+                shell: None,
             },
         );
         drop(tasks);
@@ -317,7 +345,7 @@ impl TaskManager {
         let task_id = req.task_id;
         info!("discard_task task_id={}", task_id);
         self.remove_diff_watch(task_id);
-        let (worktree_path, branch_name, base_repo_path, runtime_exists) = {
+        let (worktree_path, branch_name, base_repo_path, runtime_exists, shell_exists) = {
             let tasks = self.inner.tasks.read();
             let record = tasks.get(&task_id).ok_or(TaskError::NotFound)?;
             (
@@ -325,11 +353,22 @@ impl TaskManager {
                 record.summary.branch_name.clone(),
                 PathBuf::from(&record.summary.base_repo_path),
                 record.runtime.is_some(),
+                record.shell.is_some(),
             )
         };
 
         if runtime_exists {
             let _ = self.stop_task(StopTaskRequest { task_id }, app);
+        }
+        if shell_exists {
+            let mut tasks = self.inner.tasks.write();
+            if let Some(record) = tasks.get_mut(&task_id) {
+                if let Some(shell) = record.shell.take() {
+                    if let Some(mut child_guard) = shell.child.try_lock() {
+                        let _ = child_guard.kill();
+                    }
+                }
+            }
         }
 
         let worktree_path_string = worktree_path.to_string_lossy().to_string();
@@ -408,6 +447,86 @@ impl TaskManager {
                     .resize(req.rows as usize, req.cols as usize);
             }
         }
+        Ok(())
+    }
+
+    pub fn start_worktree_terminal(
+        &self,
+        req: StartWorktreeTerminalRequest,
+        app: &AppHandle,
+    ) -> Result<()> {
+        let task_id = req.task_id;
+        debug!(
+            "start_worktree_terminal task_id={} rows={:?} cols={:?}",
+            task_id, req.rows, req.cols
+        );
+        {
+            let tasks = self.inner.tasks.read();
+            let record = tasks.get(&task_id).ok_or(TaskError::NotFound)?;
+            if record.shell.is_some() {
+                return Ok(());
+            }
+        }
+
+        let worktree_path = self.worktree_path(task_id)?;
+        let rows = req.rows.unwrap_or(DEFAULT_PTY_ROWS).max(1);
+        let cols = req.cols.unwrap_or(DEFAULT_PTY_COLS).max(1);
+        let runtime = self.spawn_worktree_shell(task_id, worktree_path.as_path(), rows, cols, app)?;
+
+        let mut tasks = self.inner.tasks.write();
+        let record = tasks.get_mut(&task_id).ok_or(TaskError::NotFound)?;
+        if record.shell.is_none() {
+            record.shell = Some(runtime);
+        }
+        Ok(())
+    }
+
+    pub fn worktree_terminal_write(&self, req: TerminalWriteRequest) -> Result<()> {
+        let task_id = req.task_id;
+        debug!(
+            "worktree_terminal_write task_id={} bytes={}",
+            task_id,
+            req.data.len()
+        );
+        let writer = {
+            let tasks = self.inner.tasks.read();
+            let record = tasks.get(&task_id).ok_or(TaskError::NotFound)?;
+            match &record.shell {
+                Some(runtime) => runtime.writer.clone(),
+                None => return Err(TaskError::NotRunning),
+            }
+        };
+        let mut writer_guard = writer.lock();
+        writer_guard
+            .write_all(req.data.as_bytes())
+            .with_context(|| "failed to write to worktree terminal")?;
+        writer_guard.flush().ok();
+        Ok(())
+    }
+
+    pub fn worktree_terminal_resize(&self, req: TerminalResizeRequest) -> Result<()> {
+        let task_id = req.task_id;
+        debug!(
+            "worktree_terminal_resize task_id={} rows={} cols={}",
+            task_id, req.rows, req.cols
+        );
+        let master = {
+            let tasks = self.inner.tasks.read();
+            let record = tasks.get(&task_id).ok_or(TaskError::NotFound)?;
+            match &record.shell {
+                Some(runtime) => runtime.master.clone(),
+                None => return Err(TaskError::NotRunning),
+            }
+        };
+        master
+            .lock()
+            .resize(PtySize {
+                cols: req.cols,
+                rows: req.rows,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .with_context(|| "failed to resize worktree terminal")?;
         Ok(())
     }
 
@@ -532,6 +651,95 @@ impl TaskManager {
         emit_terminal_exit(app, task_id, exit_code);
     }
 
+    fn handle_worktree_terminal_exit(&self, task_id: Uuid, exit_code: i32, app: &AppHandle) {
+        debug!(
+            "worktree_terminal_exit task_id={} exit_code={}",
+            task_id, exit_code
+        );
+        let mut tasks = self.inner.tasks.write();
+        if let Some(record) = tasks.get_mut(&task_id) {
+            record.shell = None;
+        }
+        emit_worktree_terminal_exit(app, task_id, exit_code);
+    }
+
+    fn spawn_worktree_shell(
+        &self,
+        task_id: Uuid,
+        worktree_path: &Path,
+        rows: u16,
+        cols: u16,
+        app: &AppHandle,
+    ) -> Result<TaskRuntime> {
+        let pty_system = native_pty_system();
+        let pair = pty_system.openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })?;
+
+        let master = pair.master;
+        let writer = master
+            .take_writer()
+            .context("failed to obtain worktree terminal writer")?;
+        let reader = master
+            .try_clone_reader()
+            .context("failed to clone worktree terminal reader")?;
+        let master = Arc::new(Mutex::new(master));
+        let writer = Arc::new(Mutex::new(writer));
+
+        let command = build_worktree_shell_command(worktree_path);
+        let child = pair
+            .slave
+            .spawn_command(command)
+            .context("failed to start worktree terminal")?;
+        let child: Arc<Mutex<ChildHandle>> = Arc::new(Mutex::new(child));
+
+        let output_app = app.clone();
+        std::thread::spawn(move || {
+            let mut reader = reader;
+            let mut buffer = [0u8; 8192];
+            loop {
+                match reader.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(size) => {
+                        let chunk = String::from_utf8_lossy(&buffer[..size]).to_string();
+                        emit_worktree_terminal_output(&output_app, task_id, chunk);
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        let exit_manager = self.clone();
+        let exit_app = app.clone();
+        let exit_child = child.clone();
+        std::thread::spawn(move || {
+            let exit_code = loop {
+                {
+                    let mut child_guard = exit_child.lock();
+                    match child_guard.try_wait() {
+                        Ok(Some(status)) => {
+                            let code = status.exit_code() as i32;
+                            break if status.success() { 0 } else { code };
+                        }
+                        Ok(None) => {}
+                        Err(_) => break 1,
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            };
+            exit_manager.handle_worktree_terminal_exit(task_id, exit_code, &exit_app);
+        });
+
+        Ok(TaskRuntime {
+            child,
+            writer,
+            master,
+        })
+    }
+
     fn contains_worktree_path(&self, path: &Path) -> bool {
         let target = normalize_path_string(path);
         self.inner
@@ -605,6 +813,7 @@ impl TaskManager {
                     agent_kind: AgentKind::Codex,
                     summary: summary.clone(),
                     runtime: None,
+                    shell: None,
                 },
             );
             emit_status(app, &summary);

@@ -25,6 +25,11 @@ export class TaskTerminalComponent
   implements AfterViewInit, OnChanges, OnDestroy
 {
   @Input() taskId: string | null = null;
+  @Input() mode: "agent" | "worktree" = "agent";
+  @Input() title = "Terminal";
+  @Input() showToolbar = true;
+  @Input() suspendBackendResize = false;
+  @Input() suspendFit = false;
   @ViewChild("terminalHost", { static: true })
   terminalHost?: ElementRef<HTMLDivElement>;
 
@@ -33,6 +38,9 @@ export class TaskTerminalComponent
   private dataSubscription?: Subscription;
   private resizeObserver?: ResizeObserver;
   private wheelHandler?: (event: WheelEvent) => void;
+  private resizeTimer?: number;
+  private pendingResize?: { cols: number; rows: number };
+  private fitScheduled = false;
   private altScreenActive = false;
   private altScreenCarry = "";
   private readonly altScreenSequences = [
@@ -57,7 +65,10 @@ export class TaskTerminalComponent
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes["taskId"] && !changes["taskId"].firstChange) {
+    if (
+      (changes["taskId"] && !changes["taskId"].firstChange) ||
+      (changes["mode"] && !changes["mode"].firstChange)
+    ) {
       this.refreshTerminalSession();
     }
   }
@@ -67,6 +78,9 @@ export class TaskTerminalComponent
     this.resizeObserver?.disconnect();
     if (this.wheelHandler && this.terminal?.element) {
       this.terminal.element.removeEventListener("wheel", this.wheelHandler);
+    }
+    if (this.resizeTimer) {
+      window.clearTimeout(this.resizeTimer);
     }
     this.terminal?.dispose();
   }
@@ -119,17 +133,29 @@ export class TaskTerminalComponent
       return;
     }
 
-    const buffer = this.taskStore.getTerminalBuffer(this.taskId);
+    if (this.mode === "worktree") {
+      void this.taskStore
+        .startWorktreeTerminal(this.taskId)
+        .then(() => this.forceBackendResizeNow())
+        .catch(() => undefined);
+    }
+
+    const buffer =
+      this.mode === "worktree"
+        ? this.taskStore.getWorktreeTerminalBuffer(this.taskId)
+        : this.taskStore.getTerminalBuffer(this.taskId);
     if (buffer) {
       this.terminal.write(buffer);
     }
 
-    this.dataSubscription = this.taskStore
-      .terminalOutput$(this.taskId)
-      .subscribe((chunk) => {
-        this.detectAltScreen(chunk);
-        this.terminal?.write(chunk);
-      });
+    const output$ =
+      this.mode === "worktree"
+        ? this.taskStore.worktreeTerminalOutput$(this.taskId)
+        : this.taskStore.terminalOutput$(this.taskId);
+    this.dataSubscription = output$.subscribe((chunk) => {
+      this.detectAltScreen(chunk);
+      this.terminal?.write(chunk);
+    });
     this.scheduleFit();
   }
 
@@ -140,19 +166,20 @@ export class TaskTerminalComponent
     }
     const cols = this.terminal.cols;
     const rows = this.terminal.rows;
-    this.taskStore.recordTerminalSize(this.taskId ?? "", cols, rows);
-    if (this.taskId) {
-      void this.taskStore
-        .resizeTaskTerminal(this.taskId, cols, rows)
-        .catch(() => undefined);
-    }
+    this.recordTerminalSize(cols, rows);
+    this.scheduleBackendResize(cols, rows);
   }
 
   private scheduleFit(): void {
+    if (this.suspendFit) {
+      return;
+    }
     this.scheduleFitAttempt(0);
     if ("fonts" in document) {
       void (document as Document & { fonts: FontFaceSet }).fonts.ready.then(() => {
-        this.scheduleFitAttempt(0);
+        if (!this.suspendFit) {
+          this.scheduleFitAttempt(0);
+        }
       });
     }
   }
@@ -175,7 +202,7 @@ export class TaskTerminalComponent
     if (!this.terminalHost || typeof ResizeObserver === "undefined") {
       return;
     }
-    this.resizeObserver = new ResizeObserver(() => this.fitTerminal());
+    this.resizeObserver = new ResizeObserver(() => this.scheduleFitOnResize());
     this.resizeObserver.observe(this.terminalHost.nativeElement);
   }
 
@@ -183,14 +210,98 @@ export class TaskTerminalComponent
     if (!this.taskId) {
       return;
     }
-    void this.taskStore.writeToTask(this.taskId, data);
+    if (this.mode === "worktree") {
+      void this.taskStore.writeToWorktreeTerminal(this.taskId, data);
+    } else {
+      void this.taskStore.writeToTask(this.taskId, data);
+    }
   }
 
   private handleResize(cols: number, rows: number): void {
     if (!this.taskId) {
       return;
     }
-    void this.taskStore.resizeTaskTerminal(this.taskId, cols, rows);
+    this.recordTerminalSize(cols, rows);
+    this.scheduleBackendResize(cols, rows);
+  }
+
+  private recordTerminalSize(cols: number, rows: number): void {
+    if (this.mode === "worktree") {
+      this.taskStore.recordWorktreeTerminalSize(this.taskId ?? "", cols, rows);
+    } else {
+      this.taskStore.recordTerminalSize(this.taskId ?? "", cols, rows);
+    }
+  }
+
+  private sendBackendResize(cols: number, rows: number): void {
+    if (!this.taskId) {
+      return;
+    }
+    if (this.mode === "worktree") {
+      void this.taskStore.resizeWorktreeTerminal(this.taskId, cols, rows);
+    } else {
+      void this.taskStore.resizeTaskTerminal(this.taskId, cols, rows);
+    }
+  }
+
+  private scheduleBackendResize(cols: number, rows: number): void {
+    if (!this.taskId) {
+      return;
+    }
+    this.pendingResize = { cols, rows };
+    if (this.suspendBackendResize) {
+      return;
+    }
+    if (this.resizeTimer) {
+      window.clearTimeout(this.resizeTimer);
+    }
+    this.resizeTimer = window.setTimeout(() => {
+      this.flushBackendResize();
+    }, 150);
+  }
+
+  flushBackendResize(): void {
+    const payload = this.pendingResize;
+    this.pendingResize = undefined;
+    if (this.resizeTimer) {
+      window.clearTimeout(this.resizeTimer);
+      this.resizeTimer = undefined;
+    }
+    if (!payload || !this.taskId) {
+      return;
+    }
+    this.sendBackendResize(payload.cols, payload.rows);
+  }
+
+  private scheduleFitOnResize(): void {
+    if (this.fitScheduled) {
+      return;
+    }
+    this.fitScheduled = true;
+    requestAnimationFrame(() => {
+      this.fitScheduled = false;
+      if (!this.suspendFit) {
+        this.fitTerminal();
+      }
+    });
+  }
+
+  runFitNow(): void {
+    this.fitTerminal();
+  }
+
+  forceBackendResizeNow(ignoreSuspend = false): void {
+    if (!ignoreSuspend && (this.suspendBackendResize || this.suspendFit)) {
+      return;
+    }
+    if (!this.terminal) {
+      return;
+    }
+    this.fitAddon?.fit();
+    const cols = this.terminal.cols;
+    const rows = this.terminal.rows;
+    this.recordTerminalSize(cols, rows);
+    this.sendBackendResize(cols, rows);
   }
 
   private handleTerminalWheel(event: WheelEvent): boolean {

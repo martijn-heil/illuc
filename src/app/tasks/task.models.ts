@@ -61,3 +61,13 @@ export interface TerminalExitEvent {
   taskId: string;
   exitCode: number;
 }
+
+export interface WorktreeTerminalOutputEvent {
+  taskId: string;
+  data: string;
+}
+
+export interface WorktreeTerminalExitEvent {
+  taskId: string;
+  exitCode: number;
+}

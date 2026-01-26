@@ -8,7 +8,7 @@ use tasks::{
     handle_select_base_repo, BaseRepoInfo, CreateTaskRequest, DiffPayload, DiffRequest,
     DiscardTaskRequest, StartTaskRequest, StopTaskRequest, TerminalResizeRequest,
     TerminalWriteRequest, TaskActionRequest, TaskManager, TaskSummary, CommitTaskRequest,
-    PushTaskRequest,
+    PushTaskRequest, StartWorktreeTerminalRequest,
 };
 use log::info;
 
@@ -77,6 +77,37 @@ async fn terminal_resize(
     req: TerminalResizeRequest,
 ) -> CommandResult<()> {
     manager.terminal_resize(req).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn start_worktree_terminal(
+    manager: tauri::State<'_, TaskManager>,
+    app_handle: tauri::AppHandle,
+    req: StartWorktreeTerminalRequest,
+) -> CommandResult<()> {
+    manager
+        .start_worktree_terminal(req, &app_handle)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn worktree_terminal_write(
+    manager: tauri::State<'_, TaskManager>,
+    req: TerminalWriteRequest,
+) -> CommandResult<()> {
+    manager
+        .worktree_terminal_write(req)
+        .map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+async fn worktree_terminal_resize(
+    manager: tauri::State<'_, TaskManager>,
+    req: TerminalResizeRequest,
+) -> CommandResult<()> {
+    manager
+        .worktree_terminal_resize(req)
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
@@ -195,6 +226,9 @@ pub fn run() {
             discard_task,
             terminal_write,
             terminal_resize,
+            start_worktree_terminal,
+            worktree_terminal_write,
+            worktree_terminal_resize,
             get_diff,
             start_diff_watch,
             stop_diff_watch,

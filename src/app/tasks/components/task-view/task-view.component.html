@@ -1,5 +1,5 @@
 <ng-container *ngIf="task as current; else emptyState">
-  <section class="task-detail">
+  <section class="task-detail" #taskDetail>
     <header class="task-header">
       <div class="task-title" *ngIf="titleParts() as parts">
         <h2>
@@ -54,7 +54,11 @@
         (mouseenter)="setActivePane('terminal')"
         (focusin)="setActivePane('terminal')"
       >
-        <app-task-terminal [taskId]="current.taskId"></app-task-terminal>
+        <app-task-terminal
+          [taskId]="current.taskId"
+          [mode]="'agent'"
+          [title]="'Chat Terminal'"
+        ></app-task-terminal>
       </div>
       <div
         class="diff-column"
@@ -66,6 +70,44 @@
           [taskId]="current.taskId"
           [baseBranch]="current.baseBranch"
         ></app-task-diff>
+      </div>
+    </div>
+    <div
+      class="worktree-terminal-dock"
+      #shellDock
+      [class.is-collapsed]="!isShellTerminalOpen"
+      [class.is-resizing]="isShellResizing"
+      [style.height.px]="isShellTerminalOpen ? shellTerminalHeight : 34"
+    >
+      <div class="shell-terminal-frame">
+        <div
+          class="shell-terminal-header"
+          role="separator"
+          aria-orientation="horizontal"
+          [class.is-collapsed]="!isShellTerminalOpen"
+          (mousedown)="onShellHeaderMouseDown($event)"
+          (click)="onShellHeaderClick()"
+        >
+          <div class="shell-title"><strong>Shell</strong></div>
+          <button
+            type="button"
+            class="shell-toggle"
+            [attr.aria-pressed]="isShellTerminalOpen"
+            [attr.aria-label]="isShellTerminalOpen ? 'Collapse shell terminal' : 'Expand shell terminal'"
+            (click)="$event.stopPropagation(); toggleShellTerminal()"
+          >
+            {{ isShellTerminalOpen ? "▾" : "▴" }}
+          </button>
+        </div>
+        <app-task-terminal
+          *ngIf="isShellTerminalOpen"
+          #shellTerminal
+          [taskId]="current.taskId"
+          [mode]="'worktree'"
+          [showToolbar]="false"
+          [suspendBackendResize]="isShellResizing"
+          [suspendFit]="isShellResizing"
+        ></app-task-terminal>
       </div>
     </div>
   </section>
