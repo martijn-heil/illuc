@@ -1,0 +1,89 @@
+<section class="diff-panel">
+    <header class="diff-header">
+        <div>
+            <strong>Live Diff</strong>
+            <small *ngIf="lastUpdated">
+                Updated {{ lastUpdated | date: "shortTime" }}
+            </small>
+        </div>
+        <div class="controls">
+            <div class="mode-toggle" role="group" aria-label="Diff mode">
+                <button
+                    type="button"
+                    [class.active]="diffMode === 'worktree'"
+                    (click)="setDiffMode('worktree')"
+                >
+                    Worktree changes
+                </button>
+                <button
+                    type="button"
+                    [class.active]="diffMode === 'branch'"
+                    (click)="setDiffMode('branch')"
+                >
+                    Branch vs {{ baseBranch || "base" }}
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <ng-container *ngIf="taskId; else noTaskSelected">
+        <div *ngIf="error" class="diff-error">{{ error }}</div>
+
+        <div
+            *ngIf="!error && renderedFiles.length; else noDiff"
+            class="diff-content"
+        >
+            <aside
+                class="file-list"
+                *ngIf="diffPayload?.files?.length; else noFiles"
+            >
+                <h4>Files</h4>
+                <app-file-tree
+                    [nodes]="fileTree"
+                    (selectFile)="scrollToFile($event)"
+                ></app-file-tree>
+            </aside>
+            <div class="diff-body">
+                <div
+                    class="diff-file-section"
+                    *ngFor="let file of renderedFiles; trackBy: trackByPath"
+                    [attr.data-path]="file.path"
+                    #diffSection
+                >
+                    <div class="diff-file-header">{{ file.path }}</div>
+                    <div class="diff-lines">
+                        <div
+                            class="diff-line"
+                            *ngFor="
+                                let line of file.lines;
+                                trackBy: trackByLine
+                            "
+                            [ngClass]="line.type"
+                            [innerHTML]="line.html"
+                        ></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ng-template #noFiles>
+            <p class="diff-empty">No changed files.</p>
+        </ng-template>
+    </ng-container>
+
+    <ng-template #noTaskSelected>
+        <p class="diff-empty">Select a task to see its diff.</p>
+    </ng-template>
+
+    <ng-template #noDiff>
+        <div class="diff-empty diff-loading" *ngIf="isLoading">
+            <span class="diff-spinner" aria-hidden="true"></span>
+        </div>
+        <p class="diff-empty" *ngIf="!isLoading && hasLoaded">
+            No changed files.
+        </p>
+        <p class="diff-empty" *ngIf="!isLoading && !hasLoaded">
+            Nothing to show yet.
+        </p>
+    </ng-template>
+</section>

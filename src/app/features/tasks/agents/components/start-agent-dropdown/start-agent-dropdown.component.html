@@ -1,0 +1,36 @@
+<div
+    class="start-dropdown"
+    [class.open]="menuOpen"
+    (click)="$event.stopPropagation()"
+>
+    <app-loading-button
+        buttonClass="start-trigger"
+        [loading]="loading"
+        [disabled]="disabled"
+        [ariaExpanded]="menuOpen"
+        ariaHaspopup="menu"
+        (action)="toggleMenu($event)"
+    >
+        <span class="start-icon" aria-hidden="true">▶</span>
+        Start
+        <span class="caret" aria-hidden="true">▾</span>
+    </app-loading-button>
+    <div
+        class="start-menu"
+        *ngIf="menuOpen"
+        role="menu"
+        aria-label="Start task with agent"
+    >
+        <button
+            type="button"
+            class="start-menu-item"
+            role="menuitem"
+            *ngFor="let option of options"
+            [disabled]="disabled || loading"
+            (click)="choose(option.kind, $event)"
+        >
+            <span class="menu-caret" aria-hidden="true">&gt;</span>
+            Start with {{ option.label }}
+        </button>
+    </div>
+</div>

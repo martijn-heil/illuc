@@ -1,16 +1,16 @@
 <button
-  [attr.type]="buttonType"
-  [disabled]="disabled || loading"
-  [class.loading]="loading"
-  [attr.aria-busy]="loading ? true : null"
-  [attr.aria-label]="ariaLabel"
-  [attr.aria-expanded]="ariaExpanded"
-  [attr.aria-haspopup]="ariaHaspopup"
-  [attr.title]="title"
-  [attr.data-action]="dataAction"
-  [ngClass]="buttonClass"
-  (click)="handleClick($event)"
+    [attr.type]="buttonType"
+    [disabled]="disabled || loading"
+    [class.loading]="loading"
+    [attr.aria-busy]="loading ? true : null"
+    [attr.aria-label]="ariaLabel"
+    [attr.aria-expanded]="ariaExpanded"
+    [attr.aria-haspopup]="ariaHaspopup"
+    [attr.title]="title"
+    [attr.data-action]="dataAction"
+    [ngClass]="buttonClass"
+    (click)="handleClick($event)"
 >
-  <span class="button-spinner" *ngIf="loading" aria-hidden="true"></span>
-  <span class="button-content"><ng-content></ng-content></span>
+    <span class="button-spinner" *ngIf="loading" aria-hidden="true"></span>
+    <span class="button-content"><ng-content></ng-content></span>
 </button>

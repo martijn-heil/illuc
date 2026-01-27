@@ -1,208 +1,30 @@
-mod agents;
+mod commands;
 mod error;
-mod launcher;
-mod tasks;
+mod features;
 mod utils;
 
-use tasks::{
-    handle_select_base_repo, BaseRepoInfo, CreateTaskRequest, DiffPayload, DiffRequest,
-    DiscardTaskRequest, StartTaskRequest, StopTaskRequest, TerminalResizeRequest,
-    TerminalWriteRequest, TaskActionRequest, TaskManager, TaskSummary, CommitTaskRequest,
-    PushTaskRequest, StartWorktreeTerminalRequest,
-};
+use crate::features::launcher::commands::open_path_in_explorer::open_path_in_explorer;
+use crate::features::launcher::commands::open_path_in_vscode::open_path_in_vscode;
+use crate::features::launcher::commands::open_path_terminal::open_path_terminal;
+use crate::features::tasks::git::commands::task_git_commit::task_git_commit;
+use crate::features::tasks::git::commands::task_git_diff_get::task_git_diff_get;
+use crate::features::tasks::git::commands::task_git_diff_watch_start::task_git_diff_watch_start;
+use crate::features::tasks::git::commands::task_git_diff_watch_stop::task_git_diff_watch_stop;
+use crate::features::tasks::git::commands::task_git_list_branches::task_git_list_branches;
+use crate::features::tasks::git::commands::task_git_push::task_git_push;
+use crate::features::tasks::management::commands::select_base_repo::select_base_repo;
+use crate::features::tasks::management::commands::task_create::task_create;
+use crate::features::tasks::management::commands::task_discard::task_discard;
+use crate::features::tasks::management::commands::task_load_existing::task_load_existing;
+use crate::features::tasks::management::commands::task_open_worktree_in_vscode::task_open_worktree_in_vscode;
+use crate::features::tasks::management::commands::task_open_worktree_terminal::task_open_worktree_terminal;
+use crate::features::tasks::management::commands::task_start::task_start;
+use crate::features::tasks::management::commands::task_stop::task_stop;
+use crate::features::tasks::management::commands::task_terminal_start::task_terminal_start;
+use crate::features::tasks::management::commands::task_terminal_resize::task_terminal_resize;
+use crate::features::tasks::management::commands::task_terminal_write::task_terminal_write;
+use crate::features::tasks::TaskManager;
 use log::info;
-
-type CommandResult<T> = std::result::Result<T, String>;
-
-#[tauri::command]
-async fn select_base_repo(path: String) -> CommandResult<BaseRepoInfo> {
-    handle_select_base_repo(path).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn create_task(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    req: CreateTaskRequest,
-) -> CommandResult<TaskSummary> {
-    manager
-        .create_task(req, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn start_task(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    req: StartTaskRequest,
-) -> CommandResult<TaskSummary> {
-    manager
-        .start_task(req, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn stop_task(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    req: StopTaskRequest,
-) -> CommandResult<TaskSummary> {
-    manager
-        .stop_task(req, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn discard_task(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    req: DiscardTaskRequest,
-) -> CommandResult<()> {
-    manager
-        .discard_task(req, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn terminal_write(
-    manager: tauri::State<'_, TaskManager>,
-    req: TerminalWriteRequest,
-) -> CommandResult<()> {
-    manager.terminal_write(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn terminal_resize(
-    manager: tauri::State<'_, TaskManager>,
-    req: TerminalResizeRequest,
-) -> CommandResult<()> {
-    manager.terminal_resize(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn start_worktree_terminal(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    req: StartWorktreeTerminalRequest,
-) -> CommandResult<()> {
-    manager
-        .start_worktree_terminal(req, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn worktree_terminal_write(
-    manager: tauri::State<'_, TaskManager>,
-    req: TerminalWriteRequest,
-) -> CommandResult<()> {
-    manager
-        .worktree_terminal_write(req)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn worktree_terminal_resize(
-    manager: tauri::State<'_, TaskManager>,
-    req: TerminalResizeRequest,
-) -> CommandResult<()> {
-    manager
-        .worktree_terminal_resize(req)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn get_diff(
-    manager: tauri::State<'_, TaskManager>,
-    req: DiffRequest,
-) -> CommandResult<DiffPayload> {
-    manager.get_diff(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn start_diff_watch(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    req: TaskActionRequest,
-) -> CommandResult<()> {
-    manager
-        .start_diff_watch(req, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn stop_diff_watch(
-    manager: tauri::State<'_, TaskManager>,
-    req: TaskActionRequest,
-) -> CommandResult<()> {
-    manager.stop_diff_watch(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn commit_task(
-    manager: tauri::State<'_, TaskManager>,
-    req: CommitTaskRequest,
-) -> CommandResult<()> {
-    manager.commit_task(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn push_task(
-    manager: tauri::State<'_, TaskManager>,
-    req: PushTaskRequest,
-) -> CommandResult<()> {
-    manager.push_task(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn load_existing_worktrees(
-    manager: tauri::State<'_, TaskManager>,
-    app_handle: tauri::AppHandle,
-    base_repo_path: String,
-) -> CommandResult<Vec<TaskSummary>> {
-    manager
-        .register_existing_worktrees(base_repo_path, &app_handle)
-        .map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn open_worktree_in_vscode(
-    manager: tauri::State<'_, TaskManager>,
-    req: TaskActionRequest,
-) -> CommandResult<()> {
-    manager.open_in_vscode(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn open_worktree_terminal(
-    manager: tauri::State<'_, TaskManager>,
-    req: TaskActionRequest,
-) -> CommandResult<()> {
-    manager.open_terminal(req).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn open_path_in_vscode(path: String) -> CommandResult<()> {
-    let target = std::path::PathBuf::from(path);
-    launcher::open_path_in_vscode(target.as_path()).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn open_path_terminal(path: String) -> CommandResult<()> {
-    let target = std::path::PathBuf::from(path);
-    launcher::open_path_terminal(target.as_path()).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn open_path_in_explorer(path: String) -> CommandResult<()> {
-    let target = std::path::PathBuf::from(path);
-    launcher::open_path_in_explorer(target.as_path()).map_err(|err| err.to_string())
-}
-
-#[tauri::command]
-async fn list_branches(path: String) -> CommandResult<Vec<String>> {
-    let repo = std::path::PathBuf::from(&path);
-    tasks::git::list_branches(repo.as_path()).map_err(|err| err.to_string())
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -220,27 +42,25 @@ pub fn run() {
         .manage(TaskManager::default())
         .invoke_handler(tauri::generate_handler![
             select_base_repo,
-            create_task,
-            start_task,
-            stop_task,
-            discard_task,
-            terminal_write,
-            terminal_resize,
-            start_worktree_terminal,
-            worktree_terminal_write,
-            worktree_terminal_resize,
-            get_diff,
-            start_diff_watch,
-            stop_diff_watch,
-            commit_task,
-            push_task,
-            load_existing_worktrees,
-            open_worktree_in_vscode,
-            open_worktree_terminal,
+            task_create,
+            task_start,
+            task_stop,
+            task_discard,
+            task_terminal_write,
+            task_terminal_resize,
+            task_terminal_start,
+            task_git_diff_get,
+            task_git_diff_watch_start,
+            task_git_diff_watch_stop,
+            task_git_commit,
+            task_git_push,
+            task_load_existing,
+            task_open_worktree_in_vscode,
+            task_open_worktree_terminal,
             open_path_in_vscode,
             open_path_terminal,
             open_path_in_explorer,
-            list_branches
+            task_git_list_branches
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

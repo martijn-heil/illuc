@@ -1,0 +1,1 @@
+export const TERMINAL_SCROLLBACK = 1000;

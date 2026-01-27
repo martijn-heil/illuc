@@ -1,0 +1,270 @@
+<ng-container *ngIf="task as current; else emptyState">
+    <section
+        class="task-detail"
+        [class.shell-collapsed]="!isShellTerminalOpen"
+        #taskDetail
+    >
+        <header class="task-header">
+            <div class="task-title" *ngIf="titleParts() as parts">
+                <h2>
+                    <span *ngIf="parts.taskId" class="task-pill"
+                        >#{{ parts.taskId }}</span
+                    >
+                    <span>{{ parts.label }}</span>
+                </h2>
+            </div>
+            <div class="header-actions">
+                <div class="workspace-actions">
+                    <app-open-vscode-button
+                        [path]="current.worktreePath"
+                    ></app-open-vscode-button>
+                    <app-open-terminal-button
+                        [path]="current.worktreePath"
+                    ></app-open-terminal-button>
+                </div>
+                <ng-container
+                    *ngIf="current.status !== 'STOPPED'; else startStatus"
+                >
+                    <span
+                        class="status-pill"
+                        [attr.data-status]="current.status"
+                    >
+                        {{ statusLabel() }}
+                    </span>
+                </ng-container>
+                <ng-template #startStatus>
+                    <app-start-agent-dropdown
+                        [disabled]="!canStart()"
+                        [loading]="startLoading"
+                        (start)="startWith($event)"
+                    ></app-start-agent-dropdown>
+                </ng-template>
+                <app-task-action-button
+                    type="commit"
+                    [disabled]="!current"
+                    (action)="openCommitModal()"
+                ></app-task-action-button>
+                <app-task-action-button
+                    type="push"
+                    [disabled]="!current"
+                    (action)="openPushModal()"
+                ></app-task-action-button>
+                <app-task-action-button
+                    type="stop"
+                    [disabled]="!isRunning()"
+                    [loading]="stopLoading"
+                    (action)="onStop()"
+                ></app-task-action-button>
+                <app-task-action-button
+                    type="discard"
+                    (action)="onDiscard()"
+                ></app-task-action-button>
+            </div>
+        </header>
+
+        <div class="split-panels">
+            <div
+                class="terminal-column"
+                [class.active]="activePane === 'terminal'"
+                (mouseenter)="setActivePane('terminal')"
+                (focusin)="setActivePane('terminal')"
+            >
+                <app-task-terminal
+                    [taskId]="current.taskId"
+                    [mode]="'agent'"
+                    [title]="'Chat Terminal'"
+                ></app-task-terminal>
+            </div>
+            <div
+                class="diff-column"
+                [class.active]="activePane === 'diff'"
+                (mouseenter)="setActivePane('diff')"
+                (focusin)="setActivePane('diff')"
+            >
+                <app-task-diff
+                    [taskId]="current.taskId"
+                    [baseBranch]="current.baseBranch"
+                ></app-task-diff>
+            </div>
+        </div>
+        <div
+            class="worktree-terminal-dock"
+            #shellDock
+            [class.is-collapsed]="!isShellTerminalOpen"
+            [class.is-resizing]="isShellResizing"
+            [style.height.px]="isShellTerminalOpen ? shellTerminalHeight : 34"
+        >
+            <div class="shell-terminal-frame">
+                <div
+                    class="shell-terminal-header"
+                    role="separator"
+                    aria-orientation="horizontal"
+                    [class.is-collapsed]="!isShellTerminalOpen"
+                    (mousedown)="onShellHeaderMouseDown($event)"
+                    (click)="onShellHeaderClick()"
+                >
+                    <div class="shell-title"><strong>Shell</strong></div>
+                    <button
+                        type="button"
+                        class="shell-toggle"
+                        [attr.aria-pressed]="isShellTerminalOpen"
+                        [attr.aria-label]="
+                            isShellTerminalOpen
+                                ? 'Collapse shell terminal'
+                                : 'Expand shell terminal'
+                        "
+                        (click)="
+                            $event.stopPropagation(); toggleShellTerminal()
+                        "
+                    >
+                        {{ isShellTerminalOpen ? "▾" : "▴" }}
+                    </button>
+                </div>
+                <app-task-terminal
+                    *ngIf="isShellTerminalOpen"
+                    #shellTerminal
+                    [taskId]="current.taskId"
+                    [mode]="'worktree'"
+                    [showToolbar]="false"
+                    [suspendBackendResize]="isShellResizing"
+                    [suspendFit]="isShellResizing"
+                ></app-task-terminal>
+            </div>
+        </div>
+    </section>
+</ng-container>
+
+<div class="modal-backdrop" *ngIf="showCommitModal">
+    <div class="modal">
+        <h3>Commit changes</h3>
+        <p class="modal-subtitle">Write a commit message for this task.</p>
+        <label class="input-label">Commit message</label>
+        <input
+            type="text"
+            [(ngModel)]="commitMessage"
+            placeholder="e.g. Add task summary view"
+        />
+        <label class="checkbox">
+            <input type="checkbox" [(ngModel)]="commitStageAll" />
+            Stage all changes
+        </label>
+        <div class="error" *ngIf="commitError">{{ commitError }}</div>
+        <div class="modal-actions">
+            <app-loading-button
+                buttonType="button"
+                buttonClass="ghost"
+                [disabled]="isCommitting"
+                (action)="closeCommitModal()"
+            >
+                Cancel
+            </app-loading-button>
+            <app-loading-button
+                buttonType="button"
+                buttonClass="primary"
+                [loading]="isCommitting"
+                (action)="submitCommit()"
+            >
+                Commit
+            </app-loading-button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" *ngIf="showPushModal">
+    <div class="modal">
+        <h3>Push changes</h3>
+        <p class="modal-subtitle">Push this task branch to a remote.</p>
+        <label class="input-label">Remote</label>
+        <input type="text" [(ngModel)]="pushRemote" placeholder="origin" />
+        <label class="input-label">Branch</label>
+        <input type="text" [(ngModel)]="pushBranch" />
+        <label class="checkbox">
+            <input type="checkbox" [(ngModel)]="pushSetUpstream" />
+            Set upstream
+        </label>
+        <div class="error" *ngIf="pushError">{{ pushError }}</div>
+        <div class="modal-actions">
+            <app-loading-button
+                buttonType="button"
+                buttonClass="ghost"
+                [disabled]="isPushing"
+                (action)="closePushModal()"
+            >
+                Cancel
+            </app-loading-button>
+            <app-loading-button
+                buttonType="button"
+                buttonClass="primary"
+                [loading]="isPushing"
+                (action)="submitPush()"
+            >
+                Push
+            </app-loading-button>
+        </div>
+    </div>
+</div>
+
+<ng-template #emptyState>
+    <div class="empty-view">
+        <div class="landing-card">
+            <div class="compass-logo" aria-hidden="true">
+                <svg
+                    viewBox="0 0 200 200"
+                    role="presentation"
+                    focusable="false"
+                >
+                    <circle
+                        class="compass-ring outer"
+                        cx="100"
+                        cy="100"
+                        r="70"
+                    />
+                    <circle
+                        class="compass-ring inner"
+                        cx="100"
+                        cy="100"
+                        r="48"
+                    />
+                    <line
+                        class="compass-axis"
+                        x1="100"
+                        y1="20"
+                        x2="100"
+                        y2="180"
+                    />
+                    <line
+                        class="compass-axis"
+                        x1="20"
+                        y1="100"
+                        x2="180"
+                        y2="100"
+                    />
+                    <path
+                        class="compass-needle"
+                        d="M100 40 L124 100 L100 160 L76 100 Z"
+                        transform="rotate(45 100 100)"
+                    />
+                    <circle class="compass-core" cx="100" cy="100" r="6" />
+                </svg>
+            </div>
+            <div class="landing-text">
+                <h1>illuc</h1>
+                <p class="etymology">„thither, to that place, to there“</p>
+                <p class="subtitle">
+                    Select a base repository to load managed worktrees, then
+                    choose an existing task or create a new branch to get
+                    started.
+                </p>
+                <app-loading-button
+                    buttonType="button"
+                    buttonClass="primary landing-action"
+                    *ngIf="!baseRepo"
+                    [loading]="selectRepoLoading"
+                    (action)="onSelectBaseRepo()"
+                >
+                    Select repository
+                </app-loading-button>
+            </div>
+        </div>
+    </div>
+</ng-template>

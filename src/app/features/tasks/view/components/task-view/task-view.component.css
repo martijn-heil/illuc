@@ -1,0 +1,518 @@
+:host {
+    height: 100%;
+    min-height: 0;
+}
+
+.task-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: var(--color-text);
+    overflow: hidden;
+    width: 100%;
+    position: relative;
+}
+
+.task-header {
+    display: grid;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.35rem 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.task-title {
+    display: block;
+    flex: 1 1 0;
+    min-width: 0;
+    order: 1;
+}
+
+.task-header h2 {
+    margin: 0 0 0.3rem 0;
+}
+
+.meta {
+    margin: 0;
+    color: var(--color-muted);
+    flex: 1 1 100%;
+    order: 2;
+}
+
+.meta code {
+    background: var(--color-surface-strong);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+}
+
+.task-pill {
+    background: var(--color-pill);
+    border-radius: 999px;
+    padding: 0.15rem 0.75rem;
+    font-size: 0.85rem;
+    margin-right: 0.5rem;
+    color: var(--color-accent);
+    letter-spacing: 0.5px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: nowrap;
+    margin-left: auto;
+    order: 1;
+    flex: 0 0 auto;
+}
+
+.workspace-actions {
+    display: flex;
+    gap: 0.35rem;
+    margin-right: 0.5rem;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--color-muted);
+}
+
+.checkbox input {
+    accent-color: var(--color-accent);
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(96, 90, 82, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    backdrop-filter: blur(3px);
+}
+
+.modal {
+    width: min(420px, 90%);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    color: var(--color-text);
+}
+
+.modal-subtitle {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+.modal input {
+    padding: 0.45rem 0.7rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-strong);
+    color: inherit;
+}
+
+.modal input:focus {
+    outline: 2px solid var(--color-focus);
+    border-color: transparent;
+}
+
+.input-label {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+:host ::ng-deep .modal .ghost,
+:host ::ng-deep .modal .primary {
+    border-radius: 6px;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+:host ::ng-deep .modal .primary {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent);
+}
+
+.error {
+    color: var(--color-danger);
+    font-size: 0.85rem;
+}
+
+.workspace-actions app-open-vscode-button,
+.workspace-actions app-open-terminal-button {
+    display: inline-flex;
+}
+
+.icon-btn .icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.icon-btn {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    border-radius: 50%;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 10.5rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: inherit;
+    text-transform: capitalize;
+    background: var(--color-surface-strong);
+    white-space: nowrap;
+}
+
+.status-pill[data-status="IDLE"] {
+    background: var(--color-surface-alt);
+    color: var(--color-text);
+}
+
+.status-pill[data-status="AWAITING_APPROVAL"] {
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+}
+
+.status-pill[data-status="WORKING"] {
+    background: var(--color-success-soft);
+    color: var(--color-success);
+}
+
+.status-pill[data-status="FAILED"] {
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
+}
+
+.status-pill[data-status="COMPLETED"] {
+    background: var(--color-info-soft);
+    color: var(--color-info);
+}
+
+.split-panels {
+    position: relative;
+    flex: 1;
+    padding: 0.75rem;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.task-detail.shell-collapsed .split-panels {
+    padding-bottom: calc(0.75rem + 34px);
+}
+
+.terminal-column {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    z-index: 1;
+    transition:
+        box-shadow 0.2s ease,
+        z-index 0.2s ease;
+}
+
+.terminal-column app-task-terminal {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.diff-column {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 75%;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+    z-index: 1;
+    transition:
+        box-shadow 0.2s ease,
+        z-index 0.2s ease;
+}
+
+.diff-column app-task-diff,
+.terminal-column app-task-terminal {
+    flex: 1;
+    display: block;
+}
+
+.terminal-column.active {
+    z-index: 2;
+    box-shadow: 0 18px 32px rgba(96, 90, 82, 0.25);
+}
+
+.diff-column.active {
+    z-index: 2;
+    box-shadow: 0 18px 32px rgba(96, 90, 82, 0.25);
+}
+
+.worktree-terminal-dock {
+    height: 260px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    transition: height 0.2s ease;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    pointer-events: auto;
+}
+
+.worktree-terminal-dock.is-resizing {
+    transition: none;
+    overflow: visible;
+}
+
+.shell-terminal-frame {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--color-surface);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.shell-terminal-frame app-task-terminal {
+    flex: 1;
+    min-height: 0;
+}
+
+.worktree-terminal-dock.is-collapsed {
+    min-height: 0;
+}
+
+.worktree-terminal-dock.is-collapsed .shell-terminal-frame app-task-terminal {
+    display: none;
+}
+
+.shell-terminal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+    font-size: inherit;
+    color: inherit;
+    cursor: ns-resize;
+    user-select: none;
+}
+
+.shell-terminal-header.is-collapsed {
+    cursor: pointer;
+}
+
+.shell-title {
+    letter-spacing: 0.01rem;
+}
+
+.shell-toggle {
+    width: 28px;
+    height: 20px;
+    border-radius: 2px;
+    padding: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid transparent;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-muted);
+}
+
+.shell-toggle:hover {
+    background: var(--color-surface-strong);
+    color: var(--color-text);
+}
+
+.shell-toggle:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
+.shell-toggle:active {
+    background: var(--color-surface-alt);
+}
+
+.worktree-terminal-dock.is-collapsed .shell-terminal-header {
+    border-bottom: none;
+}
+
+:host ::ng-deep .shell-terminal-frame .terminal-panel {
+    border: 0;
+    border-radius: 0;
+}
+
+button {
+    background: var(--color-surface-strong);
+    border: 1px solid var(--color-border);
+    color: inherit;
+    border-radius: 4px;
+    padding: 0.35rem 0.9rem;
+    cursor: pointer;
+}
+
+button.warn {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.empty-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    color: var(--color-text);
+    padding: 0 1.5rem;
+}
+
+.landing-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 2rem 2.5rem;
+    text-align: center;
+}
+
+.landing-text {
+    max-width: 520px;
+}
+
+:host ::ng-deep .landing-action {
+    margin-top: 1.25rem;
+    padding: 0.4rem 1.2rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-strong);
+    color: var(--color-text);
+    font-size: 0.95rem;
+    letter-spacing: 0.05rem;
+}
+
+:host ::ng-deep .landing-action:hover {
+    background: var(--color-surface-alt);
+}
+
+.compass-logo {
+    width: 180px;
+    height: 180px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.compass-logo svg {
+    width: 100%;
+    height: 100%;
+}
+
+.compass-ring {
+    fill: none;
+    stroke: var(--color-border);
+    stroke-width: 3;
+}
+
+.compass-ring.inner {
+    stroke: rgba(96, 90, 82, 0.15);
+    stroke-dasharray: 4 6;
+}
+
+.compass-core {
+    fill: var(--color-subtle);
+}
+
+.compass-needle {
+    fill: rgba(96, 90, 82, 0.35);
+    stroke: rgba(96, 90, 82, 0.65);
+    stroke-width: 1.5;
+}
+
+.compass-axis {
+    stroke: rgba(96, 90, 82, 0.2);
+    stroke-width: 2;
+}
+
+.landing-text h1 {
+    margin: 0;
+    font-size: 2.25rem;
+    letter-spacing: 0.4rem;
+    text-transform: uppercase;
+}
+
+.etymology {
+    margin: 0.3rem 0 1.25rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.08rem;
+    color: var(--color-muted);
+    font-style: italic;
+}
+
+.subtitle {
+    font-size: 1rem;
+    line-height: 1.5;
+    max-width: 420px;
+    color: var(--color-subtle);
+}
+
+@media (max-width: 640px) {
+    .landing-card {
+        padding: 1.75rem 1.5rem;
+    }
+    .landing-text h1 {
+        font-size: 1.8rem;
+        letter-spacing: 0.3rem;
+    }
+}

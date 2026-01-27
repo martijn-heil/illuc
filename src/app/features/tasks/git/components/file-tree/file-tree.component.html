@@ -1,0 +1,45 @@
+<ng-container
+    *ngTemplateOutlet="treeTemplate; context: { $implicit: nodes }"
+></ng-container>
+
+<ng-template #treeTemplate let-nodes>
+    <ng-container *ngFor="let node of nodes; trackBy: trackByNode">
+        <button
+            *ngIf="!node.isFile"
+            type="button"
+            class="tree-row folder-row"
+            [style.paddingLeft.px]="node.depth * 12"
+            (click)="toggleFolder(node.path)"
+        >
+            <span
+                class="tree-caret"
+                [class.collapsed]="isCollapsed(node.path)"
+                aria-hidden="true"
+            >
+                ▸
+            </span>
+            <span class="folder-label">{{ node.name }}/</span>
+        </button>
+        <button
+            *ngIf="node.isFile"
+            type="button"
+            class="tree-row file-row"
+            [attr.data-status]="node.status"
+            [style.paddingLeft.px]="node.depth * 12"
+            (click)="handleSelect(node.path)"
+        >
+            <span class="caret-spacer" aria-hidden="true"></span>
+            <span class="path" [attr.data-status]="node.status">
+                {{ node.name }}
+            </span>
+        </button>
+        <ng-container *ngIf="!node.isFile && !isCollapsed(node.path)">
+            <ng-container
+                *ngTemplateOutlet="
+                    treeTemplate;
+                    context: { $implicit: node.children }
+                "
+            ></ng-container>
+        </ng-container>
+    </ng-container>
+</ng-template>

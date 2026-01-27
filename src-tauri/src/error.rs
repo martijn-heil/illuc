@@ -6,8 +6,6 @@ pub type Result<T> = std::result::Result<T, TaskError>;
 pub enum TaskError {
     #[error("{0}")]
     Message(String),
-    #[error("git command failed: {command}")]
-    GitCommand { command: String, stderr: String },
     #[error("task not found")]
     NotFound,
     #[error("task is already running")]
