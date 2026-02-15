@@ -20,8 +20,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
           cache: npm
+
+      - name: Show Node and npm versions
+        run: |
+          node -v
+          npm -v
+
+      - name: Pin npm version
+        run: npm i -g npm@11.7.0
+
+      - name: Show pinned npm version
+        run: npm -v
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -66,7 +77,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: .nvmrc
 
       - name: Read version
         id: version
