@@ -49,7 +49,7 @@ jobs:
         run: npm ci
 
       - name: Build Tauri NSIS bundle
-        run: npm run tauri build -- --bundles nsis
+        run: npx --no-install tauri build --bundles nsis
 
       - name: Upload Windows installer EXE
         uses: actions/upload-artifact@v4
