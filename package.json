@@ -1,7 +1,6 @@
 {
   "name": "illuc",
   "version": "0.1.0",
-  "packageManager": "npm@11.7.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
