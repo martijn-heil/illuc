@@ -78,36 +78,66 @@ fn build_remote_callbacks(repo: &Repository) -> Result<RemoteCallbacks<'static>>
     // RemoteCallbacks owns the credential callback. We move a cloned config into it
     // to allow Cred::credential_helper to function.
     let config = repo.config().map_err(map_git_err)?;
+    let ssh_keys = default_ssh_private_keys();
     let mut callbacks = RemoteCallbacks::new();
+
+    let mut tried_ssh_agent = false;
+    let mut next_ssh_key_index = 0;
+    let mut tried_credential_helper = false;
+    #[cfg(target_os = "windows")]
+    let mut tried_gcm = false;
+    let mut tried_username = false;
+    let mut tried_default = false;
+
     callbacks.credentials(move |url, username_from_url, allowed| {
         if allowed.is_ssh_key() {
+            if !tried_ssh_agent {
+                tried_ssh_agent = true;
+                if let Some(username) = username_from_url {
+                    if let Ok(cred) = Cred::ssh_key_from_agent(username) {
+                        return Ok(cred);
+                    }
+                }
+            }
+
             if let Some(username) = username_from_url {
-                if let Ok(cred) = Cred::ssh_key_from_agent(username) {
-                    return Ok(cred);
+                while let Some(private_key) = ssh_keys.get(next_ssh_key_index) {
+                    next_ssh_key_index += 1;
+                    if let Ok(cred) = Cred::ssh_key(username, None, private_key, None) {
+                        return Ok(cred);
+                    }
                 }
             }
         }
 
         if allowed.is_user_pass_plaintext() {
-            if let Ok(cred) = Cred::credential_helper(&config, url, username_from_url) {
-                return Ok(cred);
+            if !tried_credential_helper {
+                tried_credential_helper = true;
+                if let Ok(cred) = Cred::credential_helper(&config, url, username_from_url) {
+                    return Ok(cred);
+                }
             }
             #[cfg(target_os = "windows")]
-            if let Some(cred) = try_gcm_credential(url, username_from_url) {
-                return Ok(cred);
+            if !tried_gcm {
+                tried_gcm = true;
+                if let Some(cred) = try_gcm_credential(url, username_from_url) {
+                    return Ok(cred);
+                }
             }
             return Err(git2::Error::from_str(
                 "No git credentials configured. Configure credential.helper (e.g. manager-core) or set up SSH.",
             ));
         }
 
-        if allowed.is_username() {
+        if allowed.is_username() && !tried_username {
+            tried_username = true;
             if let Some(username) = username_from_url {
                 return Cred::username(username);
             }
         }
 
-        if allowed.is_default() {
+        if allowed.is_default() && !tried_default {
+            tried_default = true;
             return Cred::default();
         }
 
@@ -116,6 +146,24 @@ fn build_remote_callbacks(repo: &Repository) -> Result<RemoteCallbacks<'static>>
         ))
     });
     Ok(callbacks)
+}
+
+fn default_ssh_private_keys() -> Vec<PathBuf> {
+    //
+    // How should home dir be determined when running on windows?
+    // 1. Always windows home?
+    // 2. Always WSL home?
+    // 3. Both? (meaning ssh keys from both directories will be tried)
+    //
+    let Some(home) = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")) else {
+        return Vec::new();
+    };
+    let ssh_dir = PathBuf::from(home).join(".ssh");
+    ["id_ed25519", "id_ecdsa", "id_rsa"]
+        .into_iter()
+        .map(|name| ssh_dir.join(name))
+        .filter(|path| path.is_file())
+        .collect()
 }
 
 pub fn validate_git_repo(path: &Path) -> Result<()> {
@@ -667,48 +715,9 @@ pub fn stage_all(repo: &Path) -> Result<()> {
 
 pub fn git_push(repo: &Path, remote_name: &str, branch: &str, set_upstream: bool) -> Result<()> {
     let repo = open_repo(repo)?;
-    let config = repo.config().map_err(map_git_err)?;
-
-    let mut callbacks = RemoteCallbacks::new();
-    callbacks.credentials(move |url, username_from_url, allowed| {
-        if allowed.is_ssh_key() {
-            if let Some(username) = username_from_url {
-                if let Ok(cred) = Cred::ssh_key_from_agent(username) {
-                    return Ok(cred);
-                }
-            }
-        }
-
-        if allowed.is_user_pass_plaintext() {
-            if let Ok(cred) = Cred::credential_helper(&config, url, username_from_url) {
-                return Ok(cred);
-            }
-            #[cfg(target_os = "windows")]
-            if let Some(cred) = try_gcm_credential(url, username_from_url) {
-                return Ok(cred);
-            }
-            return Err(git2::Error::from_str(
-                "No git credentials configured. Configure credential.helper (e.g. manager-core) or set up SSH.",
-            ));
-        }
-
-        if allowed.is_username() {
-            if let Some(username) = username_from_url {
-                return Cred::username(username);
-            }
-        }
-
-        if allowed.is_default() {
-            return Cred::default();
-        }
-
-        Err(git2::Error::from_str(
-            "No supported credential methods available. Configure SSH or a credential helper.",
-        ))
-    });
 
     let mut push_options = PushOptions::new();
-    push_options.remote_callbacks(callbacks);
+    push_options.remote_callbacks(build_remote_callbacks(&repo)?);
 
     let mut remote = repo.find_remote(remote_name).map_err(map_git_err)?;
     let local_ref = if branch.starts_with("refs/") {
